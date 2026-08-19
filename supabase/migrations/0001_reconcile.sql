@@ -15,7 +15,7 @@
 --  * Membership checks live in SECURITY DEFINER helpers so a policy on
 --    league_members never queries league_members through RLS (infinite recursion).
 --  * Creating and joining leagues go through SECURITY DEFINER RPCs, so looking
---    up an invite code never requires a blanket SELECT on `leagues`.
+--    up an invite code never requires a blanket SELECT on "leagues".
 
 -- ---------------------------------------------------------------------------
 -- 0. Tables — create only if this is a fresh database.
@@ -212,6 +212,46 @@ end $$;
 create index if not exists league_members_profile_idx on public.league_members (profile_id);
 create index if not exists league_members_league_idx  on public.league_members (league_id);
 create index if not exists draft_picks_league_idx     on public.draft_picks (league_id);
+
+-- ---------------------------------------------------------------------------
+-- 2b. Drop prior versions of our functions.
+--
+-- "create or replace function" cannot rename a parameter or change a return
+-- type, and the earlier schema declared some of these differently (e.g.
+-- is_league_member(_league uuid) vs is_league_member(target_league uuid)).
+-- Drop by actual signature so this runs no matter how they were defined.
+--
+-- CASCADE also removes policies and triggers that depend on them; every one is
+-- recreated below.
+-- ---------------------------------------------------------------------------
+
+do $$
+declare r record;
+begin
+  for r in
+    select p.oid::regprocedure as signature
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname in (
+        'is_league_member',
+        'is_league_commissioner',
+        'create_league',
+        'join_league_by_code',
+        'peek_league_by_code',
+        'my_leagues',
+        'set_my_team_name',
+        'set_my_display_name',
+        'set_draft_order',
+        'generate_invite_code',
+        'handle_new_user',
+        'guard_league_settings',
+        'guard_draft_pick'
+      )
+  loop
+    execute format('drop function if exists %s cascade', r.signature);
+  end loop;
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- 3. Profile bootstrap for new signups
