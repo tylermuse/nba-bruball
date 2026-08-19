@@ -84,7 +84,7 @@ function Shell() {
         </div>
         {selectedLeague && (
           <p className="mt-1 text-center text-xs text-gray-400">
-            {formatSeason(selectedLeague.seasonYear)} Season
+            {formatSeason(selectedLeague.season)} Season
           </p>
         )}
       </header>
@@ -233,7 +233,7 @@ function LeaderboardTab() {
             {selectedLeague.name}
           </h2>
           <dl className="space-y-2 text-sm">
-            <Row label="Season" value={formatSeason(selectedLeague.seasonYear)} />
+            <Row label="Season" value={formatSeason(selectedLeague.season)} />
             <Row
               label="Players"
               value={`${selectedLeague.memberCount} of ${selectedLeague.size}`}

@@ -62,7 +62,7 @@ export function LeagueSwitcher({ onAddLeague }: { onAddLeague: () => void }) {
                         {league.name}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {formatSeason(league.seasonYear)} · {league.memberCount}/
+                        {formatSeason(league.season)} · {league.memberCount}/
                         {league.size} players
                         {league.role === 'commissioner' && ' · commissioner'}
                       </p>

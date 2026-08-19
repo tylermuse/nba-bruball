@@ -35,17 +35,17 @@ export async function fetchMyLeagues(): Promise<League[]> {
 export async function createLeague(input: {
   name: string;
   size: LeagueSize;
-  seasonYear: number;
+  season: number;
   draftMode?: DraftMode;
-  displayName?: string;
+  teamName?: string;
 }): Promise<string> {
   const supabase = requireSupabase();
   const { data, error } = await supabase.rpc('create_league', {
     league_name: input.name,
     league_size: input.size,
-    season: input.seasonYear,
+    season_year: input.season,
     mode: input.draftMode ?? 'async',
-    commissioner_display_name: input.displayName ?? '',
+    commissioner_team_name: input.teamName ?? '',
   });
   if (error) throw new Error(error.message);
   const row = data as { id: string } | null;
@@ -65,12 +65,12 @@ export async function peekLeague(code: string): Promise<LeaguePreview | null> {
 
 export async function joinLeague(
   code: string,
-  displayName?: string,
+  teamName?: string,
 ): Promise<string> {
   const supabase = requireSupabase();
   const { data, error } = await supabase.rpc('join_league_by_code', {
     code: normalizeInviteCode(code),
-    member_display_name: displayName ?? '',
+    member_team_name: teamName ?? '',
   });
   if (error) throw new Error(error.message);
   const row = data as { id: string } | null;
@@ -84,7 +84,7 @@ export async function fetchLeagueMembers(
   const supabase = requireSupabase();
   const { data, error } = await supabase
     .from('league_members')
-    .select('id, league_id, user_id, role, display_name, draft_slot')
+    .select('id, league_id, profile_id, role, team_name, draft_slot')
     .eq('league_id', leagueId)
     .order('draft_slot', { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
@@ -103,12 +103,12 @@ export async function setDraftOrder(
   if (error) throw new Error(error.message);
 }
 
-export async function setMyDisplayName(
+export async function setMyTeamName(
   leagueId: string,
   name: string,
 ): Promise<void> {
   const supabase = requireSupabase();
-  const { error } = await supabase.rpc('set_my_display_name', {
+  const { error } = await supabase.rpc('set_my_team_name', {
     target_league: leagueId,
     new_name: name,
   });

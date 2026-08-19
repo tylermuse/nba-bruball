@@ -81,7 +81,7 @@ function CreateLeagueForm({ onDone }: { onDone: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      const leagueId = await createLeague({ name, size, seasonYear: season });
+      const leagueId = await createLeague({ name, size, season });
       await refresh();
       selectLeague(leagueId);
       onDone();
@@ -229,7 +229,7 @@ function JoinLeagueForm({
         <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
           <p className="font-medium text-gray-900">{preview.name}</p>
           <p className="mt-0.5 text-gray-600">
-            {formatSeason(preview.seasonYear)} · {preview.memberCount} of {preview.size}{' '}
+            {formatSeason(preview.season)} · {preview.memberCount} of {preview.size}{' '}
             players
           </p>
           {full && <p className="mt-2 text-red-600">This league is full.</p>}

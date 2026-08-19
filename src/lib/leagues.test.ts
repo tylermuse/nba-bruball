@@ -75,7 +75,7 @@ describe('row mappers', () => {
     const league = mapLeague({
       id: 'l1',
       name: 'The Association',
-      season_year: 2026,
+      season: 2026,
       size: 6,
       draft_mode: 'async',
       draft_status: 'pending',
@@ -90,11 +90,12 @@ describe('row mappers', () => {
           finals: 16,
         },
       },
+      pick_seconds: 90,
       role: 'commissioner',
       member_count: 3,
     });
 
-    expect(league.seasonYear).toBe(2026);
+    expect(league.season).toBe(2026);
     expect(league.draftStatus).toBe('pending');
     expect(league.inviteCode).toBe('ABC234');
     expect(league.memberCount).toBe(3);
@@ -105,7 +106,7 @@ describe('row mappers', () => {
     const preview = mapPreview({
       id: 'l1',
       name: 'Test',
-      season_year: 2026,
+      season: 2026,
       size: 6,
       // Postgres bigint often serializes as a string.
       member_count: '4' as unknown as number,
@@ -119,12 +120,12 @@ describe('row mappers', () => {
     const member = mapMember({
       id: 'm1',
       league_id: 'l1',
-      user_id: 'u1',
+      profile_id: 'u1',
       role: 'member',
-      display_name: 'Tyler',
+      team_name: 'Tyler',
       draft_slot: null,
     });
     expect(member.draftSlot).toBeNull();
-    expect(member.displayName).toBe('Tyler');
+    expect(member.teamName).toBe('Tyler');
   });
 });
