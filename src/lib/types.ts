@@ -5,6 +5,31 @@ export type DraftMode = 'async' | 'live';
 export type DraftStatus = 'pending' | 'in_progress' | 'complete';
 export type MemberRole = 'commissioner' | 'member';
 
+/** Human-readable labels — never render the raw enum value. */
+export const DRAFT_STATUS_LABELS: Record<DraftStatus, string> = {
+  pending: 'Not started',
+  in_progress: 'In progress',
+  complete: 'Complete',
+};
+
+export const DRAFT_MODE_LABELS: Record<DraftMode, string> = {
+  async: 'Async',
+  live: 'Live',
+};
+
+export const ROLE_LABELS: Record<MemberRole, string> = {
+  commissioner: 'Commissioner',
+  member: 'Member',
+};
+
+export function draftStatusLabel(status: string): string {
+  return (
+    DRAFT_STATUS_LABELS[status as DraftStatus] ??
+    // Defensive: a legacy or unexpected value should still read cleanly.
+    status.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
+  );
+}
+
 /**
  * Note on naming: the database uses `profile_id`, `season`, and `team_name`.
  * We map to camelCase here but keep the same concepts — `teamName` is the

@@ -5,7 +5,7 @@ import {
   buildInviteUrl,
   readInviteCodeFromUrl,
 } from './leagues';
-import { mapLeague, mapMember, mapPreview } from './types';
+import { mapLeague, mapMember, mapPreview, draftStatusLabel } from './types';
 
 describe('invite codes', () => {
   it('uppercases and trims', () => {
@@ -127,5 +127,18 @@ describe('row mappers', () => {
     });
     expect(member.draftSlot).toBeNull();
     expect(member.teamName).toBe('Tyler');
+  });
+});
+
+describe('draft status labels', () => {
+  it('renders canonical statuses as human text', () => {
+    expect(draftStatusLabel('pending')).toBe('Not started');
+    expect(draftStatusLabel('in_progress')).toBe('In progress');
+    expect(draftStatusLabel('complete')).toBe('Complete');
+  });
+
+  it('degrades gracefully on an unexpected legacy value', () => {
+    // The database briefly carried 'not_started' from the previous schema.
+    expect(draftStatusLabel('not_started')).toBe('Not started');
   });
 });

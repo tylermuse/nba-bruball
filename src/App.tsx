@@ -10,6 +10,7 @@ import { TEAMS, DIVISIONS, getTeamsByDivision, type Conference } from './data/te
 import { DEFAULT_SCORING, CHAMPIONSHIP_RUN_POINTS, ROUND_LABELS, ROUND_ORDER } from './lib/scoring';
 import { formatSeason } from './lib/season';
 import { readInviteCodeFromUrl } from './lib/leagues';
+import { draftStatusLabel, ROLE_LABELS } from './lib/types';
 import { cn } from './lib/utils';
 
 type Tab = 'schedule' | 'leaderboard' | 'draft';
@@ -239,8 +240,8 @@ function LeaderboardTab() {
               value={`${selectedLeague.memberCount} of ${selectedLeague.size}`}
             />
             <Row label="Teams each" value={String(30 / selectedLeague.size)} />
-            <Row label="Draft" value={selectedLeague.draftStatus} />
-            <Row label="Your role" value={selectedLeague.role} />
+            <Row label="Draft" value={draftStatusLabel(selectedLeague.draftStatus)} />
+            <Row label="Your role" value={ROLE_LABELS[selectedLeague.role]} />
             <Row label="Invite code" value={selectedLeague.inviteCode} mono />
           </dl>
         </div>
@@ -261,7 +262,7 @@ function Row({
   return (
     <div className="flex items-center justify-between">
       <dt className="text-gray-600">{label}</dt>
-      <dd className={cn('font-medium text-gray-900 capitalize', mono && 'font-mono tracking-wider')}>
+      <dd className={cn('font-medium text-gray-900', mono && 'font-mono tracking-wider')}>
         {value}
       </dd>
     </div>
