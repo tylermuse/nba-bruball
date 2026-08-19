@@ -1,0 +1,23 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-50: oklch(0.977 0.017 320.058);
+  --color-brand-200: oklch(0.903 0.076 319.62);
+  --color-brand-600: oklch(0.591 0.293 322.896);
+}
+
+:root {
+  --font-size: 16px;
+  --radius: 0.625rem;
+}
+
+html {
+  font-size: var(--font-size);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
