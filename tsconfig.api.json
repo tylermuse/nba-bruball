@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "vite/client"],
+    "resolveJsonModule": true
+  },
+  "include": ["api", "src/lib", "src/data", "src/vite-env.d.ts"]
+}

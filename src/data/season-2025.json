@@ -1,0 +1,170 @@
+{
+ "espnSeason": 2026,
+ "playoffs": {
+  "cleveland-cavaliers": {
+   "confSemifinals": 1,
+   "firstRound": 1
+  },
+  "detroit-pistons": {
+   "firstRound": 1
+  },
+  "golden-state-warriors": {
+   "playIn": 1
+  },
+  "los-angeles-lakers": {
+   "firstRound": 1
+  },
+  "minnesota-timberwolves": {
+   "firstRound": 1
+  },
+  "new-york-knicks": {
+   "confFinals": 1,
+   "confSemifinals": 1,
+   "finals": 1,
+   "firstRound": 1
+  },
+  "oklahoma-city-thunder": {
+   "confSemifinals": 1,
+   "firstRound": 1
+  },
+  "orlando-magic": {
+   "playIn": 1
+  },
+  "philadelphia-76ers": {
+   "firstRound": 1,
+   "playIn": 1
+  },
+  "phoenix-suns": {
+   "playIn": 1
+  },
+  "san-antonio-spurs": {
+   "confFinals": 1,
+   "confSemifinals": 1,
+   "firstRound": 1
+  }
+ },
+ "season": 2025,
+ "standings": {
+  "atlanta-hawks": {
+   "losses": 36,
+   "wins": 46
+  },
+  "boston-celtics": {
+   "losses": 26,
+   "wins": 56
+  },
+  "brooklyn-nets": {
+   "losses": 62,
+   "wins": 20
+  },
+  "charlotte-hornets": {
+   "losses": 38,
+   "wins": 44
+  },
+  "chicago-bulls": {
+   "losses": 51,
+   "wins": 31
+  },
+  "cleveland-cavaliers": {
+   "losses": 30,
+   "wins": 52
+  },
+  "dallas-mavericks": {
+   "losses": 56,
+   "wins": 26
+  },
+  "denver-nuggets": {
+   "losses": 28,
+   "wins": 54
+  },
+  "detroit-pistons": {
+   "losses": 22,
+   "wins": 60
+  },
+  "golden-state-warriors": {
+   "losses": 45,
+   "wins": 37
+  },
+  "houston-rockets": {
+   "losses": 30,
+   "wins": 52
+  },
+  "indiana-pacers": {
+   "losses": 63,
+   "wins": 19
+  },
+  "la-clippers": {
+   "losses": 40,
+   "wins": 42
+  },
+  "los-angeles-lakers": {
+   "losses": 29,
+   "wins": 53
+  },
+  "memphis-grizzlies": {
+   "losses": 57,
+   "wins": 25
+  },
+  "miami-heat": {
+   "losses": 39,
+   "wins": 43
+  },
+  "milwaukee-bucks": {
+   "losses": 50,
+   "wins": 32
+  },
+  "minnesota-timberwolves": {
+   "losses": 33,
+   "wins": 49
+  },
+  "new-orleans-pelicans": {
+   "losses": 56,
+   "wins": 26
+  },
+  "new-york-knicks": {
+   "losses": 29,
+   "wins": 53
+  },
+  "oklahoma-city-thunder": {
+   "losses": 18,
+   "wins": 64
+  },
+  "orlando-magic": {
+   "losses": 37,
+   "wins": 45
+  },
+  "philadelphia-76ers": {
+   "losses": 37,
+   "wins": 45
+  },
+  "phoenix-suns": {
+   "losses": 37,
+   "wins": 45
+  },
+  "portland-trail-blazers": {
+   "losses": 40,
+   "wins": 42
+  },
+  "sacramento-kings": {
+   "losses": 60,
+   "wins": 22
+  },
+  "san-antonio-spurs": {
+   "losses": 20,
+   "wins": 62
+  },
+  "toronto-raptors": {
+   "losses": 36,
+   "wins": 46
+  },
+  "utah-jazz": {
+   "losses": 60,
+   "wins": 22
+  },
+  "washington-wizards": {
+   "losses": 65,
+   "wins": 17
+  }
+ },
+ "updatedAt": "2026-06-27T00:00:00Z"
+}

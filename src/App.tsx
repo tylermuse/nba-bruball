@@ -8,11 +8,14 @@ import { LeagueSwitcher } from './components/LeagueSwitcher';
 import { DraftOrderSetup } from './components/DraftOrderSetup';
 import { DraftBoard } from './components/DraftBoard';
 import { Leaderboard } from './components/Leaderboard';
+import { TeamLogo } from './components/TeamLogo';
+import { getTeamById } from './data/teams';
 import { DEFAULT_SCORING, ROUND_LABELS, ROUND_ORDER } from './lib/scoring';
 import { formatSeason } from './lib/season';
 import { readInviteCodeFromUrl } from './lib/leagues';
 import { draftStatusLabel, ROLE_LABELS, type League } from './lib/types';
 import { useDraft, type DraftView } from './lib/useDraft';
+import { useNbaData, type NbaData } from './lib/useNbaData';
 import { cn } from './lib/utils';
 
 type Tab = 'schedule' | 'leaderboard' | 'draft';
@@ -35,6 +38,7 @@ function Shell() {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
 
   const draft = useDraft(selectedLeague);
+  const nba = useNbaData(selectedLeague?.season ?? null);
 
   // The signed-in user's membership row in the selected league.
   const myMemberId = useMemo(() => {
@@ -113,12 +117,14 @@ function Shell() {
       <main className="px-4 py-6">
         {selectedLeague && (
           <>
-            {activeTab === 'schedule' && <ScheduleTab league={selectedLeague} />}
+            {activeTab === 'schedule' && <ScheduleTab league={selectedLeague} nba={nba} />}
             {activeTab === 'leaderboard' && (
               <Leaderboard
                 league={selectedLeague}
                 draft={draft}
                 myMemberId={myMemberId}
+                standings={nba.standings}
+                playoffs={nba.playoffs}
               />
             )}
             {activeTab === 'draft' && (
@@ -226,7 +232,92 @@ function TabButton({
   );
 }
 
-function ScheduleTab({ league }: { league: League }) {
+/**
+ * Where the numbers come from, plus the season's best records. Naming the
+ * source matters: "local snapshot" vs "espn" is the difference between real
+ * live data and a bundled copy, and silently showing the wrong one would be
+ * worse than showing nothing.
+ */
+function SeasonSnapshot({ league, nba }: { league: League; nba: NbaData }) {
+  const teams = nba.standings ? Object.entries(nba.standings) : [];
+  const top = [...teams]
+    .sort((a, b) => b[1].wins - a[1].wins)
+    .slice(0, 5);
+  const champion = nba.playoffs
+    ? Object.entries(nba.playoffs).find(([, r]) => (r.finals ?? 0) > 0)?.[0]
+    : null;
+
+  const sourceLabel =
+    nba.source === 'espn'
+      ? 'Live from ESPN'
+      : nba.source === 'sportsdata'
+        ? 'Live from SportsData.io'
+        : nba.source === 'local'
+          ? 'Bundled snapshot'
+          : null;
+
+  if (nba.loading && !nba.standings) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="size-5 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (!teams.length) {
+    return (
+      <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-4 text-sm text-gray-700">
+        No results yet for {formatSeason(league.season)} — the season hasn't
+        tipped off. Standings and playoff points will appear here once games
+        are played.
+        {sourceLabel && (
+          <span className="mt-1 block text-xs text-gray-500">{sourceLabel}</span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-gray-200 bg-white p-5">
+      <div className="mb-3 flex items-baseline justify-between">
+        <h2 className="text-lg font-medium text-gray-900">
+          {formatSeason(league.season)} Results
+        </h2>
+        {sourceLabel && <span className="text-xs text-gray-400">{sourceLabel}</span>}
+      </div>
+
+      {champion && (
+        <div className="mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+          <Trophy className="size-4 shrink-0 text-amber-600" />
+          <span className="text-sm text-gray-900">
+            <span className="font-medium">{getTeamById(champion)?.name ?? champion}</span>{' '}
+            won the title
+          </span>
+        </div>
+      )}
+
+      <p className="mb-2 text-xs text-gray-500">Best records</p>
+      <ul className="space-y-1.5">
+        {top.map(([teamId, rec]) => {
+          const team = getTeamById(teamId);
+          return (
+            <li key={teamId} className="flex items-center gap-3 text-sm">
+              {team && <TeamLogo team={team} size={22} />}
+              <span className="min-w-0 flex-1 truncate text-gray-900">
+                {team?.name ?? teamId}
+              </span>
+              <span className="shrink-0 tabular-nums text-gray-600">
+                {rec.wins}-{rec.losses}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function ScheduleTab({ league, nba }: { league: League; nba: NbaData }) {
   const scoring = league.scoringConfig ?? DEFAULT_SCORING;
   const championshipRun =
     scoring.seriesPoints.firstRound +
@@ -236,11 +327,7 @@ function ScheduleTab({ league }: { league: League }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-4 text-sm text-gray-700">
-        Live NBA scores and points-at-stake arrive in Phase 4. NBA games are
-        organized by date rather than week, so this tab will show a rolling
-        window of upcoming games.
-      </div>
+      <SeasonSnapshot league={league} nba={nba} />
 
       <section className="rounded-xl border border-gray-200 bg-white p-5">
         <h2 className="mb-3 text-lg font-medium text-gray-900">Scoring Rules</h2>

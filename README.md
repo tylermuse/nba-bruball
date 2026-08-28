@@ -60,8 +60,29 @@ service-role key and `SPORTSDATAIO_API_KEY` are server-side only.
 
 - **Phase 0** — scaffold + Supabase wiring ✅
 - **Phase 1** — NBA teams, scoring, snake draft, season logic ✅
-- **Phase 2** — accounts + create/join league
-- **Phase 3** — async draft + per-league views
-- **Phase 4** — live NBA data wiring
+- **Phase 2** — accounts + create/join league ✅
+- **Phase 3** — async draft + per-league views ✅
+- **Phase 4** — live NBA data wiring ✅
 - **Phase 5** — real-time draft room
 - **Phase 6** — polish
+
+## Live NBA data
+
+Three tiers, each validated before use so a partial response falls through
+instead of silently zeroing out rosters:
+
+1. **SportsData.io** — only if `SPORTSDATAIO_API_KEY` is set (server-side only)
+2. **ESPN public API** — no key required
+3. **Bundled snapshot** — `src/data/season-2025.json`, the completed 2025-26 season
+
+Endpoints: `/api/nba/standings`, `/api/nba/playoffs`, `/api/nba/scores?dates=…`
+
+**Season numbering gotcha:** we label a season by its *starting* year (2025 =
+the 2025-26 season). ESPN labels it by its *ending* year, so our 2025 is ESPN's
+2026. That conversion lives in `toEspnSeason()`.
+
+NBA games are organized by **date**, not week, so the scores endpoint takes a
+`YYYYMMDD` date or `YYYYMMDD-YYYYMMDD` range rather than a week number.
+
+Note: `npm run dev` serves the SPA only — `/api` returns 404 and the app falls
+back to the bundled snapshot. Run `vercel dev` to exercise the real endpoints.
