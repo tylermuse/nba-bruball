@@ -129,3 +129,16 @@ export function readInviteCodeFromUrl(search: string): string | null {
   const normalized = normalizeInviteCode(code);
   return isValidInviteCode(normalized) ? normalized : null;
 }
+
+/** Commissioner switches between async and live drafting before it starts. */
+export async function setDraftMode(
+  leagueId: string,
+  mode: DraftMode,
+): Promise<void> {
+  const supabase = requireSupabase();
+  const { error } = await supabase
+    .from('leagues')
+    .update({ draft_mode: mode })
+    .eq('id', leagueId);
+  if (error) throw new Error(error.message);
+}

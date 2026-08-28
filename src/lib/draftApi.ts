@@ -25,6 +25,7 @@ export interface DraftState {
   currentPick: number;
   onTheClockMemberId: string | null;
   pickDeadline: string | null;
+  paused: boolean;
 }
 
 export async function fetchDraftBoard(leagueId: string): Promise<DraftBoardPick[]> {
@@ -60,7 +61,7 @@ export async function fetchDraftState(leagueId: string): Promise<DraftState | nu
   const supabase = requireSupabase();
   const { data, error } = await supabase
     .from('draft_state')
-    .select('league_id, current_pick, on_the_clock_member_id, pick_deadline')
+    .select('league_id, current_pick, on_the_clock_member_id, pick_deadline, paused')
     .eq('league_id', leagueId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -70,6 +71,7 @@ export async function fetchDraftState(leagueId: string): Promise<DraftState | nu
     currentPick: Number(data.current_pick),
     onTheClockMemberId: (data.on_the_clock_member_id as string | null) ?? null,
     pickDeadline: (data.pick_deadline as string | null) ?? null,
+    paused: Boolean(data.paused),
   };
 }
 

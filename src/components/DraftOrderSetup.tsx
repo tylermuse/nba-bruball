@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Loader2, Play, Shuffle } from 'lucide-react';
 import { setDraftOrder } from '../lib/leagues';
 import { startDraft } from '../lib/draftApi';
+import { setPickSeconds } from '../lib/liveDraft';
+import { setDraftMode } from '../lib/leagues';
 import type { League, LeagueMember } from '../lib/types';
 import { cn } from '../lib/utils';
 
@@ -56,6 +58,32 @@ export function DraftOrderSetup({ league, members, onChanged }: Props) {
       await onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the order');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changeMode(mode: 'async' | 'live') {
+    setBusy(true);
+    setError(null);
+    try {
+      await setDraftMode(league.id, mode);
+      await onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change draft mode');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changeClock(seconds: number) {
+    setBusy(true);
+    setError(null);
+    try {
+      await setPickSeconds(league.id, seconds);
+      await onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change the pick clock');
     } finally {
       setBusy(false);
     }
@@ -149,6 +177,54 @@ export function DraftOrderSetup({ league, members, onChanged }: Props) {
             </li>
           ))}
         </ul>
+
+        <div className="mt-5 border-t border-gray-200 pt-4">
+          <p className="mb-2 text-sm font-medium text-gray-700">Draft mode</p>
+          <div className="grid grid-cols-2 gap-2">
+            {(['async', 'live'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => void changeMode(option)}
+                className={cn(
+                  'rounded-lg border px-3 py-3 text-left text-sm transition-colors',
+                  league.draftMode === option
+                    ? 'border-fuchsia-500 bg-fuchsia-50 text-fuchsia-900'
+                    : 'border-gray-300 text-gray-700',
+                )}
+              >
+                <span className="block font-medium">
+                  {option === 'async' ? 'Async' : 'Live'}
+                </span>
+                <span className="block text-xs text-gray-500">
+                  {option === 'async'
+                    ? 'Pick any time'
+                    : 'Timed picks, everyone together'}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {league.draftMode === 'live' && (
+            <div className="mt-3">
+              <label htmlFor="pick-clock" className="mb-1 block text-sm text-gray-700">
+                Seconds per pick
+              </label>
+              <select
+                id="pick-clock"
+                value={league.pickSeconds}
+                onChange={(e) => void changeClock(Number(e.target.value))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
+              >
+                {[30, 60, 90, 120, 180, 300].map((n) => (
+                  <option key={n} value={n}>
+                    {n} seconds
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
 
         <button
           type="button"

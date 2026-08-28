@@ -3,7 +3,10 @@ import { Loader2, Undo2, RotateCcw, Search, Trophy } from 'lucide-react';
 import { TEAMS, getTeamById, DIVISIONS, type Conference } from '../data/teams';
 import { TeamLogo } from './TeamLogo';
 import { makePick, undoLastPick, resetDraft } from '../lib/draftApi';
+import { pauseDraft, resumeDraft } from '../lib/liveDraft';
 import { getUpcomingPicks, type DraftView } from '../lib/useDraft';
+import { useRealtimeDraft, usePresence } from '../lib/useRealtimeDraft';
+import { DraftClock } from './DraftClock';
 import type { League } from '../lib/types';
 import { cn } from '../lib/utils';
 
@@ -22,7 +25,18 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
 
   const isCommissioner = league.role === 'commissioner';
   const myTurn = draft.onTheClock?.id === myMemberId;
-  const canPick = !draft.isComplete && (isCommissioner || myTurn);
+  const paused = draft.state?.paused ?? false;
+  const canPick = !draft.isComplete && !paused && (isCommissioner || myTurn);
+  const isLive = league.draftMode === 'live';
+
+  // Live picks arrive over Realtime; the clock and autopick ride along with it.
+  const { connection, remaining, presentMemberIds } = useRealtimeDraft({
+    league,
+    onChange: draft.refresh,
+    pickDeadline: draft.state?.pickDeadline ?? null,
+    paused,
+  });
+  usePresence(league.id, myMemberId);
 
   const available = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -76,8 +90,31 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
     }
   }
 
+  async function togglePause(next: 'pause' | 'resume') {
+    setError(null);
+    try {
+      if (next === 'pause') await pauseDraft(league.id);
+      else await resumeDraft(league.id);
+      await draft.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change the draft state');
+    }
+  }
+
   return (
     <div className="space-y-4">
+      {isLive && !draft.isComplete && (
+        <DraftClock
+          remaining={remaining}
+          paused={paused}
+          connection={connection}
+          isCommissioner={isCommissioner}
+          onPause={() => togglePause('pause')}
+          onResume={() => togglePause('resume')}
+          presentCount={presentMemberIds.length}
+        />
+      )}
+
       {/* On the clock */}
       {draft.isComplete ? (
         <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-4">

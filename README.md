@@ -63,8 +63,23 @@ service-role key and `SPORTSDATAIO_API_KEY` are server-side only.
 - **Phase 2** — accounts + create/join league ✅
 - **Phase 3** — async draft + per-league views ✅
 - **Phase 4** — live NBA data wiring ✅
-- **Phase 5** — real-time draft room
+- **Phase 5** — real-time draft room ✅
 - **Phase 6** — polish
+
+## Live draft room
+
+Set a league to **live** mode and picks are timed and broadcast:
+
+- Supabase Realtime pushes every pick and clock change to all connected clients
+- A 15s poll runs alongside it, so a dropped socket degrades to a slower
+  refresh rather than a frozen board
+- When the clock expires any client may call `autopick_if_expired()`; it no-ops
+  server-side unless the deadline really passed, so the first one through wins
+- Commissioner can pause/resume and set the pick clock (10–600s)
+
+Concurrency is enforced by the database, not the UI: `make_pick` takes a
+`FOR UPDATE` lock on `draft_state`, and `unique(league_id, pick_number)` plus
+`unique(league_id, team_id)` mean the loser of any race is rejected outright.
 
 ## Live NBA data
 
