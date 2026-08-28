@@ -176,9 +176,20 @@ export function parseEspnPlayoffs(events: EspnEvent[]): PlayoffResults {
   for (const entry of series.values()) {
     const ranked = Object.entries(entry.wins).sort((a, b) => b[1] - a[1]);
     if (!ranked.length) continue;
-    const [winnerId] = ranked[0];
+
+    // Only award a DECIDED series. Without this, the team leading an
+    // in-progress series banks the full points after game 1 — and at 2-2 the
+    // stable sort would hand it to whoever won game 1, i.e. possibly the team
+    // that goes on to lose. Best-of-7 clinches at 4; the play-in is one game.
+    const clinch = entry.round === 'playIn' ? 1 : 4;
+    const [winnerId, topWins] = ranked[0];
+    if (topWins < clinch) continue;
+
     out[winnerId] ??= {};
-    out[winnerId][entry.round] = (out[winnerId][entry.round] ?? 0) + 1;
+    // A play-in team can win two games (9/10 seed, then the 7/8 loser), but a
+    // team can only take a given bracket round once.
+    const prior = out[winnerId][entry.round] ?? 0;
+    out[winnerId][entry.round] = entry.round === 'playIn' ? prior + 1 : 1;
   }
   return out;
 }
@@ -276,14 +287,18 @@ export function isPlausibleStandings(standings: StandingsMap | null | undefined)
   return wins === losses;
 }
 
-/** Playoff payloads should never claim a team won a round more than once. */
+/** Playoff payloads should never claim a team won a bracket round twice. */
 export function isPlausiblePlayoffs(playoffs: PlayoffResults | null | undefined): boolean {
   if (!playoffs) return false;
   for (const rounds of Object.values(playoffs)) {
-    for (const count of Object.values(rounds)) {
-      if (!Number.isFinite(count) || (count as number) < 0 || (count as number) > 1) {
-        return false;
-      }
+    for (const [round, value] of Object.entries(rounds)) {
+      const count = value as number;
+      if (!Number.isFinite(count) || count < 0) return false;
+      // The play-in legitimately allows two wins for a 9/10 seed that advances;
+      // capping it at 1 here would reject a valid postseason and throw away the
+      // entire playoff payload. Every other round is once-only.
+      const max = round === 'playIn' ? 2 : 1;
+      if (count > max) return false;
     }
   }
   // At most one champion.

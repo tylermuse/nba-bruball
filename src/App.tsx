@@ -8,6 +8,9 @@ import { LeagueSwitcher } from './components/LeagueSwitcher';
 import { DraftOrderSetup } from './components/DraftOrderSetup';
 import { DraftBoard } from './components/DraftBoard';
 import { Leaderboard } from './components/Leaderboard';
+import { Schedule } from './components/Schedule';
+import { TeamNameEditor } from './components/TeamNameEditor';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { TeamLogo } from './components/TeamLogo';
 import { getTeamById } from './data/teams';
 import { DEFAULT_SCORING, ROUND_LABELS, ROUND_ORDER } from './lib/scoring';
@@ -97,6 +100,7 @@ function Shell() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <header className="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-4 shadow-sm">
+        <div className="mx-auto w-full max-w-md">
         <h1 className="text-center text-2xl font-medium text-gray-900">NBA Bruball</h1>
         <div className="mt-1">
           <LeagueSwitcher onAddLeague={() => setShowOnboarding(true)} />
@@ -106,41 +110,54 @@ function Shell() {
             {formatSeason(selectedLeague.season)} Season
           </p>
         )}
+        </div>
       </header>
 
       {(error || draft.error) && (
-        <div className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error ?? draft.error}
+        <div className="mx-auto mt-4 w-full max-w-md px-4">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {error ?? draft.error}
+          </div>
         </div>
       )}
 
-      <main className="px-4 py-6">
+      <main className="mx-auto w-full max-w-md px-4 py-6">
         {selectedLeague && (
           <>
-            {activeTab === 'schedule' && <ScheduleTab league={selectedLeague} nba={nba} />}
-            {activeTab === 'leaderboard' && (
-              <Leaderboard
-                league={selectedLeague}
-                draft={draft}
-                myMemberId={myMemberId}
-                standings={nba.standings}
-                playoffs={nba.playoffs}
-              />
-            )}
-            {activeTab === 'draft' && (
-              <DraftTab
-                league={selectedLeague}
-                draft={draft}
-                myMemberId={myMemberId}
-                onChanged={refreshAll}
-              />
-            )}
+            <ErrorBoundary resetKey={`${activeTab}-${selectedLeague.id}`}>
+              {activeTab === 'schedule' && (
+                <ScheduleTab
+                  league={selectedLeague}
+                  nba={nba}
+                  draft={draft}
+                  myMemberId={myMemberId}
+                  onChanged={refreshAll}
+                />
+              )}
+              {activeTab === 'leaderboard' && (
+                <Leaderboard
+                  league={selectedLeague}
+                  draft={draft}
+                  myMemberId={myMemberId}
+                  standings={nba.standings}
+                  playoffs={nba.playoffs}
+                />
+              )}
+              {activeTab === 'draft' && (
+                <DraftTab
+                  league={selectedLeague}
+                  draft={draft}
+                  myMemberId={myMemberId}
+                  onChanged={refreshAll}
+                />
+              )}
+            </ErrorBoundary>
           </>
         )}
       </main>
 
       <nav className="fixed right-0 bottom-0 left-0 border-t border-gray-200 bg-white shadow-lg">
-        <div className="flex justify-around">
+        <div className="mx-auto flex w-full max-w-md justify-around">
           <TabButton
             label="Schedule"
             icon={<Calendar className="size-6" />}
@@ -317,7 +334,20 @@ function SeasonSnapshot({ league, nba }: { league: League; nba: NbaData }) {
   );
 }
 
-function ScheduleTab({ league, nba }: { league: League; nba: NbaData }) {
+function ScheduleTab({
+  league,
+  nba,
+  draft,
+  myMemberId,
+  onChanged,
+}: {
+  league: League;
+  nba: NbaData;
+  draft: DraftView;
+  myMemberId: string | null;
+  onChanged: () => Promise<void>;
+}) {
+  const myRoster = draft.rosters.find((r) => r.memberId === myMemberId);
   const scoring = league.scoringConfig ?? DEFAULT_SCORING;
   const championshipRun =
     scoring.seriesPoints.firstRound +
@@ -327,6 +357,18 @@ function ScheduleTab({ league, nba }: { league: League; nba: NbaData }) {
 
   return (
     <div className="space-y-4">
+      <Schedule league={league} rosters={draft.rosters} myMemberId={myMemberId} />
+
+      {myMemberId && myRoster && (
+        <section className="rounded-xl border border-gray-200 bg-white p-5">
+          <TeamNameEditor
+            leagueId={league.id}
+            currentName={myRoster.teamName}
+            onSaved={onChanged}
+          />
+        </section>
+      )}
+
       <SeasonSnapshot league={league} nba={nba} />
 
       <section className="rounded-xl border border-gray-200 bg-white p-5">

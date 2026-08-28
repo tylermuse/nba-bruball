@@ -34,7 +34,7 @@ export type SeasonPhase = 'offseason' | 'regular' | 'postseason';
 
 /**
  * Rough phase of the season for UI copy. Approximate by design — the live data
- * layer (Phase 4) reports authoritative phase when it's available.
+ * layer reports the authoritative phase when live data is available.
  */
 export function getSeasonPhase(now: Date = new Date()): SeasonPhase {
   const month = now.getMonth() + 1;

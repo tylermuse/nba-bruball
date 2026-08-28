@@ -64,7 +64,7 @@ service-role key and `SPORTSDATAIO_API_KEY` are server-side only.
 - **Phase 3** — async draft + per-league views ✅
 - **Phase 4** — live NBA data wiring ✅
 - **Phase 5** — real-time draft room ✅
-- **Phase 6** — polish
+- **Phase 6** — polish ✅
 
 ## Live draft room
 

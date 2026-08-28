@@ -158,11 +158,14 @@ describe('ESPN playoff series derivation', () => {
   });
 
   it('keeps rounds separate for a team that advances', () => {
+    // Each round needs a real 4-win clinch — one game per round awards nothing.
+    const sweep = (round: string, a: string, b: string) =>
+      [1, 2, 3, 4].map((n) => game(`${round} - Game ${n}`, a, b, true));
     const events = [
-      game('East 1st Round - Game 1', 'NY', 'ATL', true),
-      game('East Semifinals - Game 1', 'NY', 'PHI', true),
-      game('East Finals - Game 1', 'NY', 'CLE', true),
-      game('NBA Finals - Game 1', 'NY', 'SA', true),
+      ...sweep('East 1st Round', 'NY', 'ATL'),
+      ...sweep('East Semifinals', 'NY', 'PHI'),
+      ...sweep('East Finals', 'NY', 'CLE'),
+      ...sweep('NBA Finals', 'NY', 'SA'),
     ];
     const parsed = parseEspnPlayoffs(events);
     expect(parsed['new-york-knicks']).toEqual({
@@ -354,5 +357,78 @@ describe('scoring the real 2025-26 season', () => {
       seriesPoints: { ...DEFAULT_SCORING.seriesPoints, finals: 32 },
     };
     expect(getPlayoffPoints(playoffs['new-york-knicks'], doubled)).toBe(38 + 16);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Regression tests for in-progress playoff series (found in review).
+// ---------------------------------------------------------------------------
+
+describe('in-progress playoff series', () => {
+  const game = (headline: string, home: string, away: string, homeWon: boolean) => ({
+    competitions: [
+      {
+        notes: [{ headline }],
+        status: { type: { name: 'STATUS_FINAL' } },
+        competitors: [
+          { team: { abbreviation: home }, homeAway: 'home', winner: homeWon },
+          { team: { abbreviation: away }, homeAway: 'away', winner: !homeWon },
+        ],
+      },
+    ],
+  });
+
+  it('awards nothing after game 1 of a best-of-7', () => {
+    // Previously the leader banked the full 4 points immediately.
+    const parsed = parseEspnPlayoffs([game('East 1st Round - Game 1', 'CLE', 'TOR', true)]);
+    expect(parsed).toEqual({});
+  });
+
+  it('awards nothing at 2-2', () => {
+    const events = [
+      game('East 1st Round - Game 1', 'CLE', 'TOR', true),
+      game('East 1st Round - Game 2', 'CLE', 'TOR', false),
+      game('East 1st Round - Game 3', 'TOR', 'CLE', false),
+      game('East 1st Round - Game 4', 'TOR', 'CLE', true),
+    ];
+    expect(parseEspnPlayoffs(events)).toEqual({});
+  });
+
+  it('awards nothing at 3-2 — a lead is not a clinch', () => {
+    const events = [
+      ...[1, 2, 3].map((n) => game(`East 1st Round - Game ${n}`, 'CLE', 'TOR', true)),
+      ...[4, 5].map((n) => game(`East 1st Round - Game ${n}`, 'TOR', 'CLE', true)),
+    ];
+    expect(parseEspnPlayoffs(events)).toEqual({});
+  });
+
+  it('awards the series only on the 4th win', () => {
+    const events = [1, 2, 3, 4].map((n) =>
+      game(`East 1st Round - Game ${n}`, 'CLE', 'TOR', true),
+    );
+    expect(parseEspnPlayoffs(events)['cleveland-cavaliers']).toEqual({ firstRound: 1 });
+  });
+
+  it('awards a play-in game immediately — it is a single game', () => {
+    const parsed = parseEspnPlayoffs([
+      game('NBA Play-In - East - 7th Place vs 8th Place', 'PHI', 'ORL', true),
+    ]);
+    expect(parsed['philadelphia-76ers']).toEqual({ playIn: 1 });
+  });
+
+  it('lets a 9/10 seed win two play-in games without being rejected', () => {
+    const parsed = parseEspnPlayoffs([
+      game('NBA Play-In - West - 9th Place vs 10th Place', 'GS', 'DAL', true),
+      game('NBA Play-In - West - 8th Seed Game', 'GS', 'PHX', true),
+    ]);
+    expect(parsed['golden-state-warriors']).toEqual({ playIn: 2 });
+    // Must survive validation, or the whole payload gets discarded.
+    expect(isPlausiblePlayoffs(parsed)).toBe(true);
+    // And it is still worth nothing.
+    expect(getPlayoffPoints(parsed['golden-state-warriors'])).toBe(0);
+  });
+
+  it('still rejects a bracket round won twice', () => {
+    expect(isPlausiblePlayoffs({ 'new-york-knicks': { firstRound: 2 } })).toBe(false);
   });
 });

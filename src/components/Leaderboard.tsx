@@ -3,6 +3,7 @@ import { ChevronDown, Trophy } from 'lucide-react';
 import { getTeamById } from '../data/teams';
 import { TeamLogo } from './TeamLogo';
 import {
+  DEFAULT_SCORING,
   getRosterBreakdown,
   getRosterPoints,
   type PlayoffResults,
@@ -16,7 +17,7 @@ interface Props {
   league: League;
   draft: DraftView;
   myMemberId: string | null;
-  /** Live NBA data arrives in Phase 4; until then rosters score zero. */
+  /** Live standings and playoff results; null before the season has data. */
   standings?: StandingsMap | null;
   playoffs?: PlayoffResults | null;
 }
@@ -31,7 +32,10 @@ export function Leaderboard({
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const rows = useMemo(() => {
-    const scoring = league.scoringConfig;
+    // A malformed scoring_config would otherwise crash the whole leaderboard.
+    const scoring = league.scoringConfig?.seriesPoints
+      ? league.scoringConfig
+      : DEFAULT_SCORING;
     return draft.rosters
       .map((r) => ({
         ...r,
@@ -47,8 +51,8 @@ export function Leaderboard({
     <div className="space-y-4">
       {!anyPicks && (
         <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-4 text-sm text-gray-700">
-          The leaderboard fills in as teams are drafted. Live NBA results start
-          feeding it in Phase 4.
+          The leaderboard fills in as teams are drafted, then updates from
+          live NBA results once the season is under way.
         </div>
       )}
 
