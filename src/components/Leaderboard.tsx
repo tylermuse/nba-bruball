@@ -31,6 +31,14 @@ export function Leaderboard({
 }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
+  // Rosters come back ordered by pick, but sort explicitly rather than relying
+  // on that — and show the pick number so the order is legible, not just true.
+  const pickByTeam = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of draft.picks) map.set(p.teamId, p.pickNumber);
+    return map;
+  }, [draft.picks]);
+
   const rows = useMemo(() => {
     // A malformed scoring_config would otherwise crash the whole leaderboard.
     const scoring = league.scoringConfig?.seriesPoints
@@ -40,10 +48,14 @@ export function Leaderboard({
       .map((r) => ({
         ...r,
         points: getRosterPoints(r.teamIds, standings, playoffs, scoring),
-        breakdown: getRosterBreakdown(r.teamIds, standings, playoffs, scoring),
+        breakdown: getRosterBreakdown(r.teamIds, standings, playoffs, scoring).sort(
+          (a, b) =>
+            (pickByTeam.get(a.teamId) ?? Number.MAX_SAFE_INTEGER) -
+            (pickByTeam.get(b.teamId) ?? Number.MAX_SAFE_INTEGER),
+        ),
       }))
       .sort((a, b) => b.points - a.points || a.teamName.localeCompare(b.teamName));
-  }, [draft.rosters, league.scoringConfig, standings, playoffs]);
+  }, [draft.rosters, league.scoringConfig, standings, playoffs, pickByTeam]);
 
   const anyPicks = draft.picks.length > 0;
 
@@ -122,6 +134,11 @@ export function Leaderboard({
                               key={b.teamId}
                               className="flex items-center gap-3 py-2 text-sm"
                             >
+                              <span className="w-7 shrink-0 text-xs tabular-nums text-gray-400">
+                                {pickByTeam.has(b.teamId)
+                                  ? `#${pickByTeam.get(b.teamId)}`
+                                  : ''}
+                              </span>
                               {team && <TeamLogo team={team} size={24} />}
                               <span className="min-w-0 flex-1 truncate text-gray-900">
                                 {team?.name ?? b.teamId}

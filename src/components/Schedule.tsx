@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
-import { CalendarDays, Loader2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { getTeamById } from '../data/teams';
 import { TeamLogo } from './TeamLogo';
-import { useNbaSchedule, rollingDateRange } from '../lib/useNbaData';
+import { useNbaSchedule, weekRange, midSeasonDate } from '../lib/useNbaData';
 import { ROUND_LABELS, type PlayoffRound } from '../lib/scoring';
 import type { RosterEntry } from '../lib/draftApi';
 import type { League } from '../lib/types';
@@ -20,8 +20,27 @@ interface Props {
  * instead.
  */
 export function Schedule({ league, rosters, myMemberId }: Props) {
-  const dates = useMemo(() => rollingDateRange(6), []);
+  // Anchor date for the visible week; navigable so you can look back at any
+  // week of the season, not just the next seven days.
+  const [anchor, setAnchor] = useState<Date>(() => new Date());
+  const dates = useMemo(() => weekRange(anchor, 6), [anchor]);
   const { games, loading, error } = useNbaSchedule(dates);
+
+  function shiftWeek(weeks: number) {
+    setAnchor((prev) => {
+      const next = new Date(prev);
+      next.setDate(next.getDate() + weeks * 7);
+      return next;
+    });
+  }
+
+  const weekLabel = useMemo(() => {
+    const end = new Date(anchor);
+    end.setDate(end.getDate() + 6);
+    const fmt = (d: Date) =>
+      d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `${fmt(anchor)} – ${fmt(end)}, ${end.getFullYear()}`;
+  }, [anchor]);
 
   /** teamId → the member who drafted it. */
   const ownerByTeam = useMemo(() => {
@@ -44,30 +63,71 @@ export function Schedule({ league, rosters, myMemberId }: Props) {
     return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [games]);
 
+  const header = (
+    <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-2 py-2">
+      <button
+        type="button"
+        onClick={() => shiftWeek(-1)}
+        aria-label="Previous week"
+        className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+      >
+        <ChevronLeft className="size-5" />
+      </button>
+      <div className="text-center">
+        <p className="text-sm font-medium text-gray-900">{weekLabel}</p>
+        <p className="text-xs text-gray-500">
+          {games.length} game{games.length === 1 ? '' : 's'}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => shiftWeek(1)}
+        aria-label="Next week"
+        className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+      >
+        <ChevronRight className="size-5" />
+      </button>
+    </div>
+  );
+
   if (loading && !games.length) {
     return (
-      <div className="flex justify-center py-10">
-        <Loader2 className="size-5 animate-spin text-gray-400" />
+      <div className="space-y-4">
+        {header}
+        <div className="flex justify-center py-10">
+          <Loader2 className="size-5 animate-spin text-gray-400" />
+        </div>
       </div>
     );
   }
 
   if (error || !games.length) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-5 text-center">
-        <CalendarDays className="mx-auto mb-2 size-6 text-gray-300" />
-        <p className="text-sm font-medium text-gray-900">No games scheduled</p>
-        <p className="mt-1 text-sm text-gray-600">
-          {error
-            ? 'Live scores are unavailable right now.'
-            : 'Nothing in the next week — the NBA is between seasons.'}
-        </p>
+      <div className="space-y-4">
+        {header}
+        <div className="rounded-xl border border-gray-200 bg-white p-5 text-center">
+          <CalendarDays className="mx-auto mb-2 size-6 text-gray-300" />
+          <p className="text-sm font-medium text-gray-900">No games this week</p>
+          <p className="mt-1 text-sm text-gray-600">
+            {error
+              ? 'Live scores are unavailable right now.'
+              : 'Nothing scheduled — the NBA is between seasons.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => setAnchor(midSeasonDate(league.season))}
+            className="mt-3 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700"
+          >
+            Jump to the {league.season}-{String((league.season + 1) % 100).padStart(2, '0')} season
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {header}
       {byDate.map(([date, dayGames]) => (
         <section key={date}>
           <h3 className="mb-2 text-sm font-medium text-gray-700">

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { PlayoffResults, StandingsMap } from './scoring';
-import type { NbaGame } from './nbaSources';
+import { parseEspnScoreboard, type NbaGame } from './nbaSources';
 import snapshot2025 from '../data/season-2025.json';
+import { supabase } from './supabase';
 
-export type SourceName = 'sportsdata' | 'espn' | 'local';
+export type SourceName = 'sportsdata' | 'espn' | 'local' | 'cache';
 
 interface Sourced<T> {
   data: T;
@@ -39,6 +40,37 @@ function localFallback(season: number) {
   return { standings: {} as StandingsMap, playoffs: {} as PlayoffResults, updatedAt: null };
 }
 
+/**
+ * How old a cached snapshot may be before we bother going live. The nightly job
+ * runs at 5am ET, so anything under two days means one missed run — still fine.
+ * Beyond that the sync is genuinely broken and stale scores would mislead.
+ */
+export const CACHE_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000;
+
+export function isCacheStale(
+  updatedAt: string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (!updatedAt) return true;
+  const age = now.getTime() - new Date(updatedAt).getTime();
+  if (Number.isNaN(age)) return true;
+  return age > CACHE_MAX_AGE_MS;
+}
+
+/** Read the nightly snapshot out of Postgres. */
+async function readCache(season: number) {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc('nba_season', { target_season: season });
+  if (error) return null;
+  const row = (data as Array<Record<string, unknown>> | null)?.[0];
+  if (!row) return null;
+  return {
+    standings: (row.standings ?? {}) as StandingsMap,
+    playoffs: (row.playoffs ?? {}) as PlayoffResults,
+    updatedAt: (row.updated_at as string | null) ?? null,
+  };
+}
+
 export function useNbaData(season: number | null): NbaData {
   const [standings, setStandings] = useState<StandingsMap | null>(null);
   const [playoffs, setPlayoffs] = useState<PlayoffResults | null>(null);
@@ -52,6 +84,22 @@ export function useNbaData(season: number | null): NbaData {
     setLoading(true);
     setError(null);
     try {
+      // 1. The nightly snapshot in our own database is the normal path — no
+      //    third-party call on a page load.
+      const cached = await readCache(season);
+      if (cached && Object.keys(cached.standings).length > 0) {
+        setStandings(cached.standings);
+        setPlayoffs(cached.playoffs);
+        setSource('cache');
+        setUpdatedAt(cached.updatedAt);
+        if (!isCacheStale(cached.updatedAt)) {
+          setLoading(false);
+          return;
+        }
+        // Stale: show it immediately, then try to do better below.
+      }
+
+      // 2. Cache missing or stale — fall back to a live fetch.
       const [s, p] = await Promise.all([
         fetch(`/api/nba/standings?season=${season}`).then((r) => {
           if (!r.ok) throw new Error(`standings ${r.status}`);
@@ -91,7 +139,18 @@ export interface ScheduleData {
   error: string | null;
 }
 
-/** Rolling date window — NBA games are organized by date, not week. */
+const ESPN_SCOREBOARD =
+  'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard';
+
+/**
+ * Games for a date window. NBA games are organized by date, not week.
+ *
+ * Falls back to calling ESPN straight from the browser when /api isn't there —
+ * which is the case under plain `vite dev`, where the serverless functions
+ * aren't running. Without this the Schedule tab is simply dead in local dev.
+ * ESPN's scoreboard sends permissive CORS headers, and the response goes
+ * through the same parser the server uses.
+ */
 export function useNbaSchedule(dates: string | null): ScheduleData {
   const [games, setGames] = useState<NbaGame[]>([]);
   const [loading, setLoading] = useState(false);
@@ -102,14 +161,26 @@ export function useNbaSchedule(dates: string | null): ScheduleData {
     let active = true;
     setLoading(true);
     setError(null);
-    fetch(`/api/nba/scores?dates=${dates}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`scores ${r.status}`);
-        return r.json() as Promise<Sourced<NbaGame[]>>;
-      })
-      .then((res) => {
-        if (active) setGames(res.data);
-      })
+
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/nba/scores?dates=${dates}`);
+        if (res.ok) {
+          const body = (await res.json()) as Sourced<NbaGame[]>;
+          if (active) setGames(body.data);
+          return;
+        }
+      } catch {
+        // fall through to the direct call
+      }
+
+      const direct = await fetch(`${ESPN_SCOREBOARD}?dates=${dates}&limit=1000`);
+      if (!direct.ok) throw new Error(`scores ${direct.status}`);
+      const json = await direct.json();
+      if (active) setGames(parseEspnScoreboard(json));
+    };
+
+    load()
       .catch((err) => {
         if (active) {
           setGames([]);
@@ -119,12 +190,32 @@ export function useNbaSchedule(dates: string | null): ScheduleData {
       .finally(() => {
         if (active) setLoading(false);
       });
+
     return () => {
       active = false;
     };
   }, [dates]);
 
   return { games, loading, error };
+}
+
+/** YYYYMMDD-YYYYMMDD for a week window anchored on `from`. */
+export function weekRange(from: Date, days = 6): string {
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(
+      d.getDate(),
+    ).padStart(2, '0')}`;
+  const end = new Date(from);
+  end.setDate(end.getDate() + days);
+  return `${fmt(from)}-${fmt(end)}`;
+}
+
+/**
+ * A date inside the given season that reliably has games — mid-January, deep
+ * into the regular season. Used to jump out of the offseason.
+ */
+export function midSeasonDate(season: number): Date {
+  return new Date(season + 1, 0, 12);
 }
 
 /** YYYYMMDD-YYYYMMDD covering today through `days` ahead. */

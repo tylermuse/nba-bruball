@@ -83,12 +83,25 @@ Concurrency is enforced by the database, not the UI: `make_pick` takes a
 
 ## Live NBA data
 
-Three tiers, each validated before use so a partial response falls through
-instead of silently zeroing out rosters:
+A nightly job writes one snapshot to Postgres; the app reads that. This keeps an
+unofficial third-party API out of the critical path of every page load.
 
-1. **SportsData.io** — only if `SPORTSDATAIO_API_KEY` is set (server-side only)
-2. **ESPN public API** — no key required
-3. **Bundled snapshot** — `src/data/season-2025.json`, the completed 2025-26 season
+**Nightly sync** — `/api/cron/sync-nba`, run by a Vercel cron at 10:00 UTC
+(5am ET, late enough that West-coast games are final). It fetches, validates,
+and upserts into `nba_season_cache`. A partial or implausible response is
+skipped rather than overwriting a good snapshot.
+
+**Read order at runtime:**
+
+1. `nba_season_cache` in Supabase — the normal path, no outbound call
+2. Live fetch — only if the cache is missing or more than 2 days stale
+3. Bundled snapshot — `src/data/season-2025.json`, last resort
+
+The live tier itself is: **SportsData.io** (only if `SPORTSDATAIO_API_KEY` is
+set) → **ESPN public API** (free, no key) → bundled snapshot.
+
+Required for the cron: `SUPABASE_SERVICE_ROLE_KEY` (server-side only — writing
+to the cache bypasses RLS) and `CRON_SECRET`.
 
 Endpoints: `/api/nba/standings`, `/api/nba/playoffs`, `/api/nba/scores?dates=…`
 

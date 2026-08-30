@@ -265,13 +265,20 @@ function SeasonSnapshot({ league, nba }: { league: League; nba: NbaData }) {
     : null;
 
   const sourceLabel =
-    nba.source === 'espn'
-      ? 'Live from ESPN'
-      : nba.source === 'sportsdata'
-        ? 'Live from SportsData.io'
-        : nba.source === 'local'
-          ? 'Bundled snapshot'
-          : null;
+    nba.source === 'cache'
+      ? nba.updatedAt
+        ? `Updated ${new Date(nba.updatedAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+          })}`
+        : 'Daily snapshot'
+      : nba.source === 'espn'
+        ? 'Live from ESPN'
+        : nba.source === 'sportsdata'
+          ? 'Live from SportsData.io'
+          : nba.source === 'local'
+            ? 'Bundled snapshot'
+            : null;
 
   if (nba.loading && !nba.standings) {
     return (

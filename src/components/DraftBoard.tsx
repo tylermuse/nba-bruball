@@ -283,7 +283,10 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
             <p className="p-6 text-center text-sm text-gray-500">No picks yet.</p>
           ) : (
             <ul>
-              {[...draft.picks].reverse().map((p) => {
+              {/* Chronological, so the log reads the way the draft happened. */}
+              {[...draft.picks]
+                .sort((a, b) => a.pickNumber - b.pickNumber)
+                .map((p) => {
                 const team = getTeamById(p.teamId);
                 return (
                   <li
