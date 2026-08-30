@@ -86,10 +86,19 @@ Concurrency is enforced by the database, not the UI: `make_pick` takes a
 A nightly job writes one snapshot to Postgres; the app reads that. This keeps an
 unofficial third-party API out of the critical path of every page load.
 
-**Nightly sync** — `/api/cron/sync-nba`, run by a Vercel cron at 10:00 UTC
-(5am ET, late enough that West-coast games are final). It fetches, validates,
-and upserts into `nba_season_cache`. A partial or implausible response is
-skipped rather than overwriting a good snapshot.
+**Daily sync** — a scheduled Claude task (`nba-bruball-daily-sync`) runs at
+5am local, fetches ESPN **in the browser**, and upserts `nba_season_cache`.
+A partial or implausible response is skipped rather than overwriting a good
+snapshot.
+
+Why the browser: **ESPN returns 403 to Supabase's servers** — verified with
+pg_net directly, with and without a browser User-Agent, so it is IP-based, not
+UA sniffing. `supabase/migrations/0007_pg_cron_sync.sql` implements the same
+sync fully in Postgres and works apart from that fetch; its cron schedule is
+left disabled with instructions to re-enable if the data ever comes from
+somewhere ESPN allows. `api/cron/sync-nba.ts` is the equivalent server
+endpoint, kept for when the app is deployed (its Vercel cron entry is disabled
+so the two can't double-write).
 
 **Read order at runtime:**
 
