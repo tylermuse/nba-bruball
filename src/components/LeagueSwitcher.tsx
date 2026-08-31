@@ -68,7 +68,7 @@ export function LeagueSwitcher({ onAddLeague }: { onAddLeague: () => void }) {
                       </p>
                     </div>
                     {league.id === selectedLeague.id && (
-                      <Check className="size-4 shrink-0 text-fuchsia-600" />
+                      <Check className="size-4 shrink-0 text-orange-600" />
                     )}
                   </button>
                 </li>

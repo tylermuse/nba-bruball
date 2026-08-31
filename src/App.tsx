@@ -20,6 +20,7 @@ import { draftStatusLabel, ROLE_LABELS, type League } from './lib/types';
 import { useDraft, type DraftView } from './lib/useDraft';
 import { useNbaData, type NbaData } from './lib/useNbaData';
 import { cn } from './lib/utils';
+import { Toaster } from 'sonner';
 
 type Tab = 'schedule' | 'leaderboard' | 'draft';
 
@@ -28,6 +29,7 @@ export default function App() {
     <AuthProvider>
       <LeagueProvider>
         <Shell />
+        <Toaster position="top-center" richColors />
       </LeagueProvider>
     </AuthProvider>
   );
@@ -99,7 +101,13 @@ function Shell() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-4 shadow-sm">
+      <header
+        ref={(el) => {
+          if (el)
+            document.documentElement.style.setProperty('--app-header-h', `${el.offsetHeight}px`);
+        }}
+        className="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-4 shadow-sm"
+      >
         <div className="mx-auto w-full max-w-md">
         <h1 className="text-center text-2xl font-medium text-gray-900">NBA Bruball</h1>
         <div className="mt-1">
@@ -240,7 +248,7 @@ function TabButton({
       onClick={onClick}
       className={cn(
         'flex flex-1 flex-col items-center gap-1 py-3 transition-colors',
-        active ? 'text-fuchsia-600' : 'text-gray-500',
+        active ? 'text-orange-600' : 'text-gray-500',
       )}
     >
       {icon}
@@ -290,7 +298,7 @@ function SeasonSnapshot({ league, nba }: { league: League; nba: NbaData }) {
 
   if (!teams.length) {
     return (
-      <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-4 text-sm text-gray-700">
+      <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-gray-700">
         No results yet for {formatSeason(league.season)} — the season hasn't
         tipped off. Standings and playoff points will appear here once games
         are played.
@@ -400,7 +408,7 @@ function ScheduleTab({
           </div>
           <div className="flex items-center justify-between border-t border-gray-200 pt-3">
             <span className="font-medium text-gray-900">Championship run</span>
-            <span className="font-semibold text-fuchsia-600">{championshipRun} pts</span>
+            <span className="font-semibold text-orange-600">{championshipRun} pts</span>
           </div>
         </div>
       </section>

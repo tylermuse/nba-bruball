@@ -151,7 +151,7 @@ export function Schedule({ league, rosters, myMemberId }: Props) {
                   key={game.id}
                   className={cn(
                     'border-b border-gray-100 px-4 py-3 last:border-b-0',
-                    anyMine && 'bg-fuchsia-50/60',
+                    anyMine && 'bg-orange-50/60',
                   )}
                 >
                   <div className="flex items-center gap-2">
@@ -183,7 +183,7 @@ export function Schedule({ league, rosters, myMemberId }: Props) {
                   </div>
 
                   {game.round && (
-                    <p className="mt-1.5 text-xs text-fuchsia-700">
+                    <p className="mt-1.5 text-xs text-orange-700">
                       {ROUND_LABELS[game.round as PlayoffRound]}
                     </p>
                   )}
@@ -228,7 +228,7 @@ function GameSide({
         <span
           className={cn(
             'shrink-0 truncate text-xs',
-            owner.memberId === myMemberId ? 'text-fuchsia-600' : 'text-gray-400',
+            owner.memberId === myMemberId ? 'text-orange-600' : 'text-gray-400',
           )}
         >
           {owner.memberId === myMemberId ? 'you' : owner.teamName || 'drafted'}

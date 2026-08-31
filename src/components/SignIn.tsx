@@ -49,7 +49,7 @@ export function SignIn() {
             <button
               type="button"
               onClick={() => setStatus('idle')}
-              className="mt-4 text-sm text-fuchsia-600 underline"
+              className="mt-4 text-sm text-orange-600 underline"
             >
               Use a different email
             </button>
@@ -71,12 +71,12 @@ export function SignIn() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               disabled={!configured}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base outline-none focus:border-fuchsia-500 disabled:bg-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base outline-none focus:border-orange-500 disabled:bg-gray-100"
             />
             <button
               type="submit"
               disabled={status === 'sending' || !configured}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-fuchsia-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-fuchsia-700 disabled:opacity-60"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-orange-700 disabled:opacity-60"
             >
               {status === 'sending' ? (
                 <Loader2 className="size-4 animate-spin" />

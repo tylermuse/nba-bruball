@@ -62,7 +62,7 @@ export function Leaderboard({
   return (
     <div className="space-y-4">
       {!anyPicks && (
-        <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-4 text-sm text-gray-700">
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-gray-700">
           The leaderboard fills in as teams are drafted, then updates from
           live NBA results once the season is under way.
         </div>
@@ -98,7 +98,7 @@ export function Leaderboard({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-gray-900">
                       {row.teamName || 'Unnamed'}
-                      {isMe && <span className="ml-1.5 text-xs text-fuchsia-600">you</span>}
+                      {isMe && <span className="ml-1.5 text-xs text-orange-600">you</span>}
                     </p>
                     <p className="text-xs text-gray-500">
                       {row.teamIds.length} team{row.teamIds.length === 1 ? '' : 's'}
@@ -120,6 +120,21 @@ export function Leaderboard({
                     )}
                   />
                 </button>
+
+                {row.teamIds.length > 0 && (
+                  <div className="flex h-1 w-full" aria-hidden="true">
+                    {row.teamIds.map((id) => {
+                      const t = getTeamById(id);
+                      return (
+                        <span
+                          key={id}
+                          className="flex-1"
+                          style={{ backgroundColor: t?.primaryColor ?? '#d1d5db' }}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
 
                 {isOpen && (
                   <div className="border-t border-gray-100 bg-gray-50 px-4 py-2">

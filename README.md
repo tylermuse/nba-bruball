@@ -10,7 +10,8 @@ invite friends, and run their own season.
 ## The game
 
 - A snake draft splits all 30 NBA teams among league members.
-- League sizes are **5** (6 teams each) or **6** (5 teams each) — both divide 30 evenly.
+- Leagues are **5 players** (6 teams each). Every player drafts **one team from
+  each of the NBA's 6 divisions**, so the 30 teams divide evenly.
 - Your score is the combined points of the teams you own.
 
 ### Scoring

@@ -71,7 +71,7 @@ export function LeagueOnboarding({ initialCode, onDone, onCancel }: Props) {
 function CreateLeagueForm({ onDone }: { onDone: () => void }) {
   const { refresh, selectLeague } = useLeagues();
   const [name, setName] = useState('');
-  const [size, setSize] = useState<LeagueSize>(6);
+  const size: LeagueSize = 5;
   const [season] = useState(getDefaultSeason());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,29 +107,14 @@ function CreateLeagueForm({ onDone }: { onDone: () => void }) {
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="The Association"
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base outline-none focus:border-fuchsia-500"
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base outline-none focus:border-orange-500"
       />
 
-      <p className="mt-4 mb-2 text-sm font-medium text-gray-700">League size</p>
-      <div className="grid grid-cols-2 gap-2">
-        {([5, 6] as LeagueSize[]).map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => setSize(option)}
-            className={cn(
-              'rounded-lg border px-3 py-3 text-sm transition-colors',
-              size === option
-                ? 'border-fuchsia-500 bg-fuchsia-50 text-fuchsia-900'
-                : 'border-gray-300 text-gray-700',
-            )}
-          >
-            <span className="block font-medium">{option} players</span>
-            <span className="block text-xs text-gray-500">
-              {30 / option} teams each
-            </span>
-          </button>
-        ))}
+      <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+        <p className="text-sm font-medium text-gray-900">5 players · 6 teams each</p>
+        <p className="mt-0.5 text-xs text-gray-500">
+          Everyone drafts one team from each of the 6 divisions.
+        </p>
       </div>
 
       <p className="mt-4 text-sm text-gray-600">
@@ -139,7 +124,7 @@ function CreateLeagueForm({ onDone }: { onDone: () => void }) {
       <button
         type="submit"
         disabled={busy}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-fuchsia-600 px-4 py-2.5 font-medium text-white hover:bg-fuchsia-700 disabled:opacity-60"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 font-medium text-white hover:bg-orange-700 disabled:opacity-60"
       >
         {busy && <Loader2 className="size-4 animate-spin" />}
         Create league
@@ -222,7 +207,7 @@ function JoinLeagueForm({
         autoCapitalize="characters"
         autoCorrect="off"
         spellCheck={false}
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-center font-mono text-xl tracking-[0.3em] uppercase outline-none focus:border-fuchsia-500"
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-center font-mono text-xl tracking-[0.3em] uppercase outline-none focus:border-orange-500"
       />
 
       {preview && (
@@ -242,7 +227,7 @@ function JoinLeagueForm({
       <button
         type="submit"
         disabled={busy || !preview || full || started}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-fuchsia-600 px-4 py-2.5 font-medium text-white hover:bg-fuchsia-700 disabled:opacity-60"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 font-medium text-white hover:bg-orange-700 disabled:opacity-60"
       >
         {busy && <Loader2 className="size-4 animate-spin" />}
         Join league

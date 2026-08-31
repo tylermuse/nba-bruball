@@ -73,13 +73,13 @@ export function TeamNameEditor({ leagueId, currentName, onSaved }: Props) {
           maxLength={40}
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-base outline-none focus:border-fuchsia-500"
+          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-base outline-none focus:border-orange-500"
         />
         <button
           type="submit"
           disabled={busy}
           aria-label="Save team name"
-          className="flex shrink-0 items-center justify-center rounded-lg bg-fuchsia-600 px-3 text-white disabled:opacity-60"
+          className="flex shrink-0 items-center justify-center rounded-lg bg-orange-600 px-3 text-white disabled:opacity-60"
         >
           {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
         </button>

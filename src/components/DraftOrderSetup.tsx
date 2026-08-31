@@ -128,7 +128,7 @@ export function DraftOrderSetup({ league, members, onChanged }: Props) {
           <button
             type="button"
             onClick={shuffle}
-            className="flex items-center gap-1.5 text-sm text-fuchsia-600"
+            className="flex items-center gap-1.5 text-sm text-orange-600"
           >
             <Shuffle className="size-4" /> Shuffle
           </button>
@@ -189,7 +189,7 @@ export function DraftOrderSetup({ league, members, onChanged }: Props) {
                 className={cn(
                   'rounded-lg border px-3 py-3 text-left text-sm transition-colors',
                   league.draftMode === option
-                    ? 'border-fuchsia-500 bg-fuchsia-50 text-fuchsia-900'
+                    ? 'border-orange-500 bg-orange-50 text-orange-900'
                     : 'border-gray-300 text-gray-700',
                 )}
               >
@@ -242,7 +242,7 @@ export function DraftOrderSetup({ league, members, onChanged }: Props) {
           disabled={busy || !full || !slotsSet}
           className={cn(
             'mt-2 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-medium text-white',
-            'bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50',
+            'bg-orange-600 hover:bg-orange-700 disabled:opacity-50',
           )}
         >
           <Play className="size-4" /> Start draft

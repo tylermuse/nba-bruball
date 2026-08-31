@@ -8,6 +8,7 @@ import { getUpcomingPicks, type DraftView } from '../lib/useDraft';
 import { useRealtimeDraft, usePresence } from '../lib/useRealtimeDraft';
 import { DraftClock } from './DraftClock';
 import type { League } from '../lib/types';
+import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 
 interface Props {
@@ -49,6 +50,21 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
     );
   }, [draft.draftedTeamIds, query]);
 
+  // One team per division (5-player leagues divide across the 6 divisions).
+  const onePerDivision = league.size === 5;
+  const clockMemberId = draft.onTheClock?.id ?? null;
+  const lockedDivisions = useMemo(() => {
+    const set = new Set<string>();
+    if (!onePerDivision || !clockMemberId) return set;
+    for (const p of draft.picks) {
+      if (p.memberId === clockMemberId) {
+        const t = getTeamById(p.teamId);
+        if (t) set.add(t.division);
+      }
+    }
+    return set;
+  }, [onePerDivision, clockMemberId, draft.picks]);
+
   const upcoming = useMemo(
     () => getUpcomingPicks(draft.currentPick, league.size, draft.members, 4),
     [draft.currentPick, draft.members, league.size],
@@ -60,6 +76,10 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
     try {
       await makePick(league.id, teamId);
       await draft.refresh();
+      const picked = getTeamById(teamId);
+      toast.success(`${picked?.name ?? 'Team'} drafted!`, {
+        description: 'Added to your roster.',
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not make that pick');
     } finally {
@@ -104,15 +124,21 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
   return (
     <div className="space-y-4">
       {isLive && !draft.isComplete && (
-        <DraftClock
-          remaining={remaining}
-          paused={paused}
-          connection={connection}
-          isCommissioner={isCommissioner}
-          onPause={() => togglePause('pause')}
-          onResume={() => togglePause('resume')}
-          presentCount={presentMemberIds.length}
-        />
+        <div
+          className="sticky z-20 bg-gray-50 pt-2"
+          style={{ top: 'var(--app-header-h, 88px)' }}
+        >
+          <DraftClock
+            remaining={remaining}
+            paused={paused}
+            connection={connection}
+            isCommissioner={isCommissioner}
+            onPause={() => togglePause('pause')}
+            onResume={() => togglePause('resume')}
+            presentCount={presentMemberIds.length}
+            myTurn={myTurn}
+          />
+        </div>
       )}
 
       {/* On the clock */}
@@ -127,19 +153,37 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-4">
-          <p className="text-xs tracking-wide text-fuchsia-700 uppercase">
+        <div
+          className={cn(
+            'rounded-xl p-4',
+            myTurn
+              ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20'
+              : 'border border-orange-200 bg-orange-50',
+          )}
+        >
+          <p
+            className={cn(
+              'text-xs font-semibold tracking-wide uppercase',
+              myTurn ? 'text-white/80' : 'text-orange-700',
+            )}
+          >
             Pick {draft.currentPick} of {draft.totalPicks} · Round{' '}
             {Math.ceil(draft.currentPick / league.size)}
           </p>
-          <p className="mt-0.5 text-lg font-medium text-gray-900">
-            {draft.onTheClock
-              ? `${draft.onTheClock.teamName || 'Unnamed'} is on the clock`
-              : 'Waiting…'}
-            {myTurn && <span className="ml-2 text-sm text-fuchsia-700">(you)</span>}
+          <p
+            className={cn(
+              'mt-0.5 text-lg font-semibold',
+              myTurn ? 'text-white' : 'text-gray-900',
+            )}
+          >
+            {myTurn
+              ? "You're on the clock — make your pick"
+              : draft.onTheClock
+                ? `${draft.onTheClock.teamName || 'Unnamed'} is on the clock`
+                : 'Waiting…'}
           </p>
           {upcoming.length > 1 && (
-            <p className="mt-1 text-xs text-gray-600">
+            <p className={cn('mt-1 text-xs', myTurn ? 'text-white/80' : 'text-gray-600')}>
               Next:{' '}
               {upcoming
                 .slice(1)
@@ -209,7 +253,7 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search teams"
-              className="w-full rounded-lg border border-gray-300 py-2 pr-3 pl-9 text-base outline-none focus:border-fuchsia-500"
+              className="w-full rounded-lg border border-gray-300 py-2 pr-3 pl-9 text-base outline-none focus:border-orange-500"
             />
           </div>
 
@@ -237,18 +281,23 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
                           {teams.map((team) => (
                             <li
                               key={team.id}
-                              className="flex items-center gap-3 border-b border-gray-100 px-4 py-3 last:border-b-0"
+                              className="flex items-center gap-3 border-b border-gray-100 py-3 pr-4 pl-3 last:border-b-0"
+                              style={{ borderLeft: `4px solid ${team.primaryColor}` }}
                             >
                               <TeamLogo team={team} size={32} />
                               <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
                                 {team.name}
                               </span>
-                              {canPick ? (
+                              {canPick && onePerDivision && lockedDivisions.has(team.division) ? (
+                                <span className="shrink-0 text-xs font-medium text-gray-400">
+                                  Division taken
+                                </span>
+                              ) : canPick ? (
                                 <button
                                   type="button"
                                   onClick={() => pick(team.id)}
                                   disabled={busyTeam !== null}
-                                  className="flex shrink-0 items-center gap-1.5 rounded-lg bg-fuchsia-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-fuchsia-700 disabled:opacity-50"
+                                  className="flex shrink-0 items-center gap-1.5 rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
                                 >
                                   {busyTeam === team.id && (
                                     <Loader2 className="size-3.5 animate-spin" />
@@ -291,9 +340,10 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
                 return (
                   <li
                     key={p.pickNumber}
-                    className="flex items-center gap-3 border-b border-gray-100 px-4 py-3 last:border-b-0"
+                    className="flex items-center gap-3 border-b border-gray-100 py-3 pr-4 pl-3 last:border-b-0"
+                    style={team ? { borderLeft: `4px solid ${team.primaryColor}` } : undefined}
                   >
-                    <span className="w-10 shrink-0 text-xs text-gray-400">
+                    <span className="w-10 shrink-0 text-xs text-gray-500">
                       {p.round}.{String(((p.pickNumber - 1) % league.size) + 1)}
                     </span>
                     {team && <TeamLogo team={team} size={28} />}
