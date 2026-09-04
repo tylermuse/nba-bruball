@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Calendar, Trophy, CircleCheckBig, Loader2 } from 'lucide-react';
+import { Calendar, Trophy, CircleCheckBig, FlaskConical, Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LeagueProvider, useLeagues } from './context/LeagueContext';
 import { SignIn } from './components/SignIn';
@@ -7,6 +7,7 @@ import { LeagueOnboarding } from './components/LeagueOnboarding';
 import { LeagueSwitcher } from './components/LeagueSwitcher';
 import { DraftOrderSetup } from './components/DraftOrderSetup';
 import { DraftBoard } from './components/DraftBoard';
+import { PracticeDraft } from './components/PracticeDraft';
 import { Leaderboard } from './components/Leaderboard';
 import { Schedule } from './components/Schedule';
 import { TeamNameEditor } from './components/TeamNameEditor';
@@ -22,7 +23,7 @@ import { useNbaData, type NbaData } from './lib/useNbaData';
 import { cn } from './lib/utils';
 import { Toaster } from 'sonner';
 
-type Tab = 'schedule' | 'leaderboard' | 'draft';
+type Tab = 'schedule' | 'leaderboard' | 'draft' | 'practice';
 
 export default function App() {
   return (
@@ -130,8 +131,12 @@ function Shell() {
       )}
 
       <main className="mx-auto w-full max-w-md px-4 py-6">
-        {selectedLeague && (
-          <>
+        {activeTab === 'practice' ? (
+          <ErrorBoundary resetKey="practice">
+            <PracticeDraft />
+          </ErrorBoundary>
+        ) : (
+          selectedLeague && (
             <ErrorBoundary resetKey={`${activeTab}-${selectedLeague.id}`}>
               {activeTab === 'schedule' && (
                 <ScheduleTab
@@ -160,7 +165,7 @@ function Shell() {
                 />
               )}
             </ErrorBoundary>
-          </>
+          )
         )}
       </main>
 
@@ -183,6 +188,12 @@ function Shell() {
             icon={<CircleCheckBig className="size-6" />}
             active={activeTab === 'draft'}
             onClick={() => setActiveTab('draft')}
+          />
+          <TabButton
+            label="Practice"
+            icon={<FlaskConical className="size-6" />}
+            active={activeTab === 'practice'}
+            onClick={() => setActiveTab('practice')}
           />
         </div>
       </nav>
