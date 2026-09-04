@@ -76,7 +76,7 @@ returns text
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $fn$
 declare
   chosen text;
   lsize int;
@@ -114,4 +114,4 @@ begin
 
   return chosen;
 end;
-$$;
+$fn$;
