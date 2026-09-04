@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Loader2, Undo2, RotateCcw, Search, Trophy } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, Undo2, RotateCcw, Search, Trophy, Lock } from 'lucide-react';
 import { TEAMS, getTeamById, DIVISIONS, type Conference } from '../data/teams';
 import { TeamLogo } from './TeamLogo';
 import { makePick, undoLastPick, resetDraft } from '../lib/draftApi';
@@ -10,6 +10,8 @@ import { DraftClock } from './DraftClock';
 import type { League } from '../lib/types';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
+import { nextForcedPick, reservedForMember, reservedTeams } from '../lib/draftReservations';
+import { VALUATION_BOARD_2026 } from '../lib/valuation';
 
 interface Props {
   league: League;
@@ -70,6 +72,22 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
     [draft.currentPick, draft.members, league.size],
   );
 
+  // Reserved divisions — a division down to its last team can only ever go
+  // to the one member who hasn't locked it, per the same invariant as the
+  // one-per-division rule itself. See lib/draftReservations.ts.
+  const reserved = useMemo(
+    () => (onePerDivision ? reservedTeams(draft.picks, draft.members) : []),
+    [onePerDivision, draft.picks, draft.members],
+  );
+  const reservedByDivision = useMemo(
+    () => new Map(reserved.map((r) => [r.division, r])),
+    [reserved],
+  );
+  const myReserved = useMemo(
+    () => (onePerDivision && myMemberId ? reservedForMember(draft.picks, draft.members, myMemberId) : []),
+    [onePerDivision, draft.picks, draft.members, myMemberId],
+  );
+
   async function pick(teamId: string) {
     setBusyTeam(teamId);
     setError(null);
@@ -86,6 +104,22 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
       setBusyTeam(null);
     }
   }
+
+  // Auto-claim: once it's my turn and every division I have left is reserved
+  // (nobody else could possibly want them), there's no real decision left —
+  // just make the pick instead of making the room wait on a rubber stamp.
+  const autoClaimingRef = useRef(false);
+  useEffect(() => {
+    if (!onePerDivision || !myTurn || !myMemberId || draft.isComplete || paused) return;
+    if (autoClaimingRef.current) return;
+    const forced = nextForcedPick(draft.picks, draft.members, myMemberId);
+    if (!forced) return;
+    autoClaimingRef.current = true;
+    pick(forced.teamId).finally(() => {
+      autoClaimingRef.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onePerDivision, myTurn, myMemberId, draft.isComplete, draft.picks, draft.members, paused]);
 
   async function undo() {
     setError(null);
@@ -194,6 +228,31 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
         </div>
       )}
 
+      {/* Reserved-but-not-yet-drafted teams for the signed-in member — no one
+          else can take these, so they're shown as already decided. */}
+      {myReserved.length > 0 && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-blue-700 uppercase">
+            <Lock className="size-3.5" /> Locked in for you
+          </p>
+          <div className="space-y-2">
+            {myReserved.map((r) => {
+              const team = getTeamById(r.teamId);
+              return (
+                <div key={r.division} className="flex items-center gap-2 text-sm text-blue-900">
+                  {team && <TeamLogo team={team} size={22} />}
+                  <span className="flex-1 truncate">{team?.name ?? r.teamId}</span>
+                  <span className="text-xs text-blue-600">{r.division}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-blue-600">
+            Nobody else can draft these — they'll be added automatically once your other picks are made.
+          </p>
+        </div>
+      )}
+
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
@@ -285,8 +344,21 @@ export function DraftBoard({ league, draft, myMemberId }: Props) {
                               style={{ borderLeft: `4px solid ${team.primaryColor}` }}
                             >
                               <TeamLogo team={team} size={32} />
-                              <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
-                                {team.name}
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-medium text-gray-900">
+                                  {team.name}
+                                </span>
+                                <span className="block text-xs text-gray-400">
+                                  {(VALUATION_BOARD_2026.byId[team.id]?.points ?? 0).toFixed(1)} pts
+                                  {reservedByDivision.has(team.division) && (
+                                    <span className="ml-1.5 text-blue-500">
+                                      · reserved for{' '}
+                                      {draft.members.find(
+                                        (m) => m.id === reservedByDivision.get(team.division)?.memberId,
+                                      )?.teamName || 'someone'}
+                                    </span>
+                                  )}
+                                </span>
                               </span>
                               {canPick && onePerDivision && lockedDivisions.has(team.division) ? (
                                 <span className="shrink-0 text-xs font-medium text-gray-400">
