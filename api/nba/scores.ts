@@ -1,4 +1,4 @@
-import { getScores } from '../_lib/fetchers';
+import { getScores } from '../_lib/fetchers.js';
 
 /**
  * NBA games are keyed by date, not week. `dates` accepts YYYYMMDD or a

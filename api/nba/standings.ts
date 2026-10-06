@@ -1,5 +1,5 @@
-import { getStandings } from '../_lib/fetchers';
-import { getDefaultSeason } from '../../src/lib/season';
+import { getStandings } from '../_lib/fetchers.js';
+import { getDefaultSeason } from '../../src/lib/season.js';
 
 export default async function handler(req: { query: Record<string, string> }, res: any) {
   try {

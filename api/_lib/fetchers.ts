@@ -17,11 +17,12 @@ import {
   isPlausibleStandings,
   isPlausiblePlayoffs,
   toEspnSeason,
-  playoffDateRange,
+  playoffMonths,
+  expandScoreboardDates,
   type NbaGame,
-} from '../../src/lib/nbaSources';
-import type { PlayoffResults, StandingsMap } from '../../src/lib/scoring';
-import snapshot2025 from '../../src/data/season-2025.json';
+} from '../../src/lib/nbaSources.js';
+import type { PlayoffResults, StandingsMap } from '../../src/lib/scoring.js';
+import snapshot2025 from '../../src/data/season-2025.json' with { type: 'json' };
 
 export type SourceName = 'sportsdata' | 'espn' | 'local';
 
@@ -52,6 +53,21 @@ async function getJson(url: string, init?: RequestInit): Promise<unknown | null>
   } catch {
     return hit?.value ?? null;
   }
+}
+
+const ESPN_SCOREBOARD = `${ESPN_BASE}/site/v2/sports/basketball/nba/scoreboard`;
+
+/**
+ * Events from one scoreboard call per `dates` value (a day or a YYYYMM month —
+ * ESPN rejects ranges). Null if any call failed, so a missing day or month is
+ * never mistaken for "no games".
+ */
+async function getScoreboardEvents(dates: string[]): Promise<unknown[] | null> {
+  const pages = await Promise.all(
+    dates.map((d) => getJson(`${ESPN_SCOREBOARD}?dates=${d}&limit=1000`)),
+  );
+  if (pages.some((p) => !p)) return null;
+  return pages.flatMap((p) => (p as { events?: unknown[] }).events ?? []);
 }
 
 function localSnapshot(season: number) {
@@ -89,7 +105,7 @@ export async function getStandings(season: number): Promise<Sourced<StandingsMap
   }
 
   const espn = await getJson(
-    `${ESPN_BASE}/v2/sports/basketball/nba/standings?season=${toEspnSeason(season)}&level=1`,
+    `${ESPN_BASE}/v2/sports/basketball/nba/standings?season=${toEspnSeason(season)}&seasontype=2&level=1`,
   );
   if (espn) {
     const parsed = parseEspnStandings(espn as never);
@@ -111,13 +127,8 @@ export async function getStandings(season: number): Promise<Sourced<StandingsMap
 
 export async function getPlayoffs(season: number): Promise<Sourced<PlayoffResults>> {
   const notes: string[] = [];
-  const { start, end } = playoffDateRange(season);
-
-  const espn = await getJson(
-    `${ESPN_BASE}/site/v2/sports/basketball/nba/scoreboard?dates=${start}-${end}&seasontype=3&limit=1000`,
-  );
-  if (espn) {
-    const events = (espn as { events?: unknown[] }).events ?? [];
+  const events = await getScoreboardEvents(playoffMonths(season));
+  if (events) {
     const parsed = parseEspnPlayoffs(events as never);
     if (isPlausiblePlayoffs(parsed) && Object.keys(parsed).length > 0) {
       return { data: parsed, source: 'espn', season, updatedAt: new Date().toISOString(), notes };
@@ -141,11 +152,9 @@ export async function getPlayoffs(season: number): Promise<Sourced<PlayoffResult
  */
 export async function getScores(dates: string): Promise<Sourced<NbaGame[]>> {
   const notes: string[] = [];
-  const espn = await getJson(
-    `${ESPN_BASE}/site/v2/sports/basketball/nba/scoreboard?dates=${dates}&limit=1000`,
-  );
-  if (espn) {
-    const games = parseEspnScoreboard(espn as never);
+  const events = await getScoreboardEvents(expandScoreboardDates(dates));
+  if (events) {
+    const games = parseEspnScoreboard({ events } as never);
     return { data: games, source: 'espn', season: 0, updatedAt: new Date().toISOString(), notes };
   }
   notes.push('espn: request failed');
