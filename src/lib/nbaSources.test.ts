@@ -195,6 +195,25 @@ describe('ESPN playoff series derivation', () => {
 });
 
 describe('scoreboard parsing', () => {
+  it('flags preseason games so they never show as scoring', () => {
+    const event = (type: number) => ({
+      id: String(type),
+      season: { type },
+      competitions: [
+        {
+          status: { type: { name: 'STATUS_FINAL' } },
+          competitors: [
+            { team: { abbreviation: 'MEM' }, homeAway: 'home', score: '132', winner: true },
+            { team: { abbreviation: 'ATL' }, homeAway: 'away', score: '123', winner: false },
+          ],
+        },
+      ],
+    });
+    const [pre, reg] = parseEspnScoreboard({ events: [event(1), event(2)] });
+    expect(pre.preseason).toBe(true);
+    expect(reg.preseason).toBe(false);
+  });
+
   it('extracts a game with scores and winner', () => {
     const games = parseEspnScoreboard({
       events: [

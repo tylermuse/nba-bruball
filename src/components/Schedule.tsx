@@ -174,14 +174,23 @@ export function Schedule({ league, rosters, myMemberId }: Props) {
 
                     <div className="shrink-0 text-right">
                       <p className="text-xs text-gray-400">
-                        {game.completed ? 'Final' : 'At stake'}
+                        {game.completed ? 'Final' : game.preseason ? 'Preseason' : 'At stake'}
                       </p>
-                      <p className="font-semibold text-gray-900">
-                        {stake} {stake === 1 ? 'pt' : 'pts'}
-                      </p>
+                      {game.preseason ? (
+                        <p className="text-sm text-gray-400">No pts</p>
+                      ) : (
+                        <p className="font-semibold text-gray-900">
+                          {stake} {stake === 1 ? 'pt' : 'pts'}
+                        </p>
+                      )}
                     </div>
                   </div>
 
+                  {game.preseason && (
+                    <p className="mt-1.5 text-xs text-gray-400">
+                      Preseason — doesn't count
+                    </p>
+                  )}
                   {game.round && (
                     <p className="mt-1.5 text-xs text-orange-700">
                       {ROUND_LABELS[game.round as PlayoffRound]}
