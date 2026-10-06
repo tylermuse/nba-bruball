@@ -126,6 +126,8 @@ export interface EspnEvent {
   date?: string;
   name?: string;
   shortName?: string;
+  /** type 1 = preseason, 2 = regular season, 3 = postseason, 5 = play-in. */
+  season?: { type?: number; slug?: string };
   competitions?: EspnCompetition[];
 }
 
@@ -208,6 +210,8 @@ export interface NbaGame {
   /** Present for postseason games. */
   round: PlayoffRound | null;
   headline: string | null;
+  /** Exhibition game — never scores. */
+  preseason: boolean;
 }
 
 export function parseEspnScoreboard(json: { events?: EspnEvent[] }): NbaGame[] {
@@ -234,6 +238,7 @@ export function parseEspnScoreboard(json: { events?: EspnEvent[] }): NbaGame[] {
         : null,
       round: roundFromHeadline(headline),
       headline,
+      preseason: event.season?.type === 1 || event.season?.slug === 'preseason',
     });
   }
   return games;
