@@ -10,7 +10,7 @@
  * rather than failing, so it lives in one clearly-named function.
  */
 
-import { getTeamByAbbreviation, getTeamByName, TEAMS } from '../data/teams';
+import { getTeamByAbbreviation, getTeamByName, TEAMS } from '../data/teams.js';
 import type { PlayoffRound, StandingsMap, PlayoffResults } from './scoring';
 
 /** Our season (starting year) → ESPN's season parameter (ending year). */
@@ -306,9 +306,37 @@ export function isPlausiblePlayoffs(playoffs: PlayoffResults | null | undefined)
   return champions.length <= 1;
 }
 
-/** Default playoff window for a season, used when querying by date range. */
-export function playoffDateRange(season: number): { start: string; end: string } {
-  // Play-In starts mid-April; the Finals end by late June of the following year.
+/**
+ * Scoreboard `dates` values (YYYYMM) covering a season's postseason. ESPN's
+ * scoreboard rejects date ranges but accepts a whole month. The Play-In starts
+ * mid-April and the Finals end by late June; non-playoff games in those months
+ * carry no round headline, so the playoff parser skips them.
+ */
+export function playoffMonths(season: number): string[] {
   const year = season + 1;
-  return { start: `${year}0410`, end: `${year}0701` };
+  return [`${year}04`, `${year}05`, `${year}06`];
+}
+
+/**
+ * Split a scoreboard `dates` value into the single-day queries ESPN accepts.
+ * "YYYYMMDD-YYYYMMDD" becomes one YYYYMMDD per day (inclusive); anything else
+ * passes through unchanged. Capped so a malformed range can't fan out forever.
+ */
+export function expandScoreboardDates(dates: string, maxDays = 31): string[] {
+  const m = /^(\d{4})(\d{2})(\d{2})-(\d{4})(\d{2})(\d{2})$/.exec(dates);
+  if (!m) return [dates];
+  const end = new Date(Date.UTC(+m[4], +m[5] - 1, +m[6]));
+  const out: string[] = [];
+  for (
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    d <= end && out.length < maxDays;
+    d.setUTCDate(d.getUTCDate() + 1)
+  ) {
+    out.push(
+      `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(
+        d.getUTCDate(),
+      ).padStart(2, '0')}`,
+    );
+  }
+  return out;
 }

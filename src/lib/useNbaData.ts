@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { PlayoffResults, StandingsMap } from './scoring';
-import { parseEspnScoreboard, type NbaGame } from './nbaSources';
+import { expandScoreboardDates, parseEspnScoreboard, type NbaGame } from './nbaSources';
 import snapshot2025 from '../data/season-2025.json';
 import { supabase } from './supabase';
 
@@ -174,10 +174,16 @@ export function useNbaSchedule(dates: string | null): ScheduleData {
         // fall through to the direct call
       }
 
-      const direct = await fetch(`${ESPN_SCOREBOARD}?dates=${dates}&limit=1000`);
-      if (!direct.ok) throw new Error(`scores ${direct.status}`);
-      const json = await direct.json();
-      if (active) setGames(parseEspnScoreboard(json));
+      // ESPN rejects date ranges, so query one day at a time.
+      const pages = await Promise.all(
+        expandScoreboardDates(dates).map(async (day) => {
+          const direct = await fetch(`${ESPN_SCOREBOARD}?dates=${day}&limit=1000`);
+          if (!direct.ok) throw new Error(`scores ${direct.status}`);
+          return (await direct.json()) as Parameters<typeof parseEspnScoreboard>[0];
+        }),
+      );
+      const events = pages.flatMap((p) => p.events ?? []);
+      if (active) setGames(parseEspnScoreboard({ events }));
     };
 
     load()

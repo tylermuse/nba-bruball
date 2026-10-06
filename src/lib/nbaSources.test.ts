@@ -10,7 +10,8 @@ import {
   roundFromHeadline,
   isPlausibleStandings,
   isPlausiblePlayoffs,
-  playoffDateRange,
+  playoffMonths,
+  expandScoreboardDates,
 } from './nbaSources';
 import { getRosterPoints, getPlayoffPoints, DEFAULT_SCORING } from './scoring';
 import { TEAMS } from '../data/teams';
@@ -281,9 +282,30 @@ describe('payload sanity checks (fallback gating)', () => {
   });
 });
 
-describe('playoff date range', () => {
-  it('spans April to July of the season’s ending year', () => {
-    expect(playoffDateRange(2025)).toEqual({ start: '20260410', end: '20260701' });
+describe('playoff months', () => {
+  it('covers April through June of the season’s ending year', () => {
+    expect(playoffMonths(2025)).toEqual(['202604', '202605', '202606']);
+  });
+});
+
+describe('expandScoreboardDates', () => {
+  it('splits a range into single days, inclusive, across a month boundary', () => {
+    expect(expandScoreboardDates('20261029-20261102')).toEqual([
+      '20261029',
+      '20261030',
+      '20261031',
+      '20261101',
+      '20261102',
+    ]);
+  });
+
+  it('passes a single day or month through unchanged', () => {
+    expect(expandScoreboardDates('20261020')).toEqual(['20261020']);
+    expect(expandScoreboardDates('202605')).toEqual(['202605']);
+  });
+
+  it('caps runaway ranges', () => {
+    expect(expandScoreboardDates('20260101-20261231')).toHaveLength(31);
   });
 });
 

@@ -1,6 +1,6 @@
-import { getStandings, getPlayoffs } from '../_lib/fetchers';
-import { getDefaultSeason } from '../../src/lib/season';
-import { isPlausibleStandings } from '../../src/lib/nbaSources';
+import { getStandings, getPlayoffs } from '../_lib/fetchers.js';
+import { getDefaultSeason } from '../../src/lib/season.js';
+import { isPlausibleStandings } from '../../src/lib/nbaSources.js';
 
 /**
  * Nightly NBA snapshot → Supabase.
