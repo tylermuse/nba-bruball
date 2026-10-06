@@ -24,7 +24,9 @@ export function Schedule({ league, rosters, myMemberId }: Props) {
   // week of the season, not just the next seven days.
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const dates = useMemo(() => weekRange(anchor, 6), [anchor]);
-  const { games, loading, error } = useNbaSchedule(dates);
+  const { games: allGames, loading, error } = useNbaSchedule(dates);
+  // Preseason exhibitions never score, so they only clutter the schedule.
+  const games = useMemo(() => allGames.filter((g) => !g.preseason), [allGames]);
 
   function shiftWeek(weeks: number) {
     setAnchor((prev) => {
@@ -90,7 +92,7 @@ export function Schedule({ league, rosters, myMemberId }: Props) {
     </div>
   );
 
-  if (loading && !games.length) {
+  if (loading && !allGames.length) {
     return (
       <div className="space-y-4">
         {header}
@@ -111,7 +113,7 @@ export function Schedule({ league, rosters, myMemberId }: Props) {
           <p className="mt-1 text-sm text-gray-600">
             {error
               ? 'Live scores are unavailable right now.'
-              : 'Nothing scheduled — the NBA is between seasons.'}
+              : 'No regular-season or playoff games in this window.'}
           </p>
           <button
             type="button"
@@ -174,23 +176,14 @@ export function Schedule({ league, rosters, myMemberId }: Props) {
 
                     <div className="shrink-0 text-right">
                       <p className="text-xs text-gray-400">
-                        {game.completed ? 'Final' : game.preseason ? 'Preseason' : 'At stake'}
+                        {game.completed ? 'Final' : 'At stake'}
                       </p>
-                      {game.preseason ? (
-                        <p className="text-sm text-gray-400">No pts</p>
-                      ) : (
-                        <p className="font-semibold text-gray-900">
-                          {stake} {stake === 1 ? 'pt' : 'pts'}
-                        </p>
-                      )}
+                      <p className="font-semibold text-gray-900">
+                        {stake} {stake === 1 ? 'pt' : 'pts'}
+                      </p>
                     </div>
                   </div>
 
-                  {game.preseason && (
-                    <p className="mt-1.5 text-xs text-gray-400">
-                      Preseason — doesn't count
-                    </p>
-                  )}
                   {game.round && (
                     <p className="mt-1.5 text-xs text-orange-700">
                       {ROUND_LABELS[game.round as PlayoffRound]}
