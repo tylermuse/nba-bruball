@@ -17,7 +17,9 @@ function unauthorized(req: { headers: Record<string, string | string[] | undefin
   const secret = process.env.CRON_SECRET;
   // Vercel signs its own cron invocations with this header.
   const auth = req.headers.authorization;
-  if (!secret) return false; // no secret configured — allow (dev)
+  // No secret configured: allow only outside production (local dev). On the
+  // live site an unset secret would let anyone trigger writes, so fail closed.
+  if (!secret) return process.env.VERCEL_ENV === 'production';
   return auth !== `Bearer ${secret}`;
 }
 
