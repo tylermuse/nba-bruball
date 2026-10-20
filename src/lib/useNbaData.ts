@@ -41,9 +41,9 @@ function localFallback(season: number) {
 }
 
 /**
- * How old a cached snapshot may be before we bother going live. The nightly job
- * runs at 5am ET, so anything under two days means one missed run — still fine.
- * Beyond that the sync is genuinely broken and stale scores would mislead.
+ * How old a cached snapshot may be before a failed live refresh is worth
+ * surfacing as an error. The nightly job runs at 5am ET, so under two days
+ * means at most one missed run.
  */
 export const CACHE_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000;
 
@@ -55,6 +55,34 @@ export function isCacheStale(
   const age = now.getTime() - new Date(updatedAt).getTime();
   if (Number.isNaN(age)) return true;
   return age > CACHE_MAX_AGE_MS;
+}
+
+/** Total games recorded in a standings map (each game counts once). */
+export function gamesPlayed(standings: StandingsMap | null | undefined): number {
+  if (!standings) return 0;
+  return Object.values(standings).reduce((n, r) => n + (r.wins ?? 0), 0);
+}
+
+function countPlayoffWins(playoffs: PlayoffResults | null | undefined): number {
+  if (!playoffs) return 0;
+  return Object.values(playoffs).reduce(
+    (n, rounds) => n + Object.values(rounds).reduce((m, v) => m + ((v as number) ?? 0), 0),
+    0,
+  );
+}
+
+/**
+ * Use live standings over the nightly snapshot when they come from a real
+ * upstream (not the bundled fallback) and are at least as far along — never
+ * let a flaky or lagging live response roll the leaderboard backwards.
+ */
+export function preferLive(
+  cached: StandingsMap | null | undefined,
+  live: StandingsMap | null | undefined,
+  liveSource: SourceName,
+): boolean {
+  if (liveSource === 'local' || !live || Object.keys(live).length === 0) return false;
+  return gamesPlayed(live) >= gamesPlayed(cached);
 }
 
 /** Read the nightly snapshot out of Postgres. */
@@ -83,23 +111,20 @@ export function useNbaData(season: number | null): NbaData {
     if (season === null) return;
     setLoading(true);
     setError(null);
+    let cached: Awaited<ReturnType<typeof readCache>> = null;
     try {
-      // 1. The nightly snapshot in our own database is the normal path — no
-      //    third-party call on a page load.
-      const cached = await readCache(season);
+      // 1. Paint the nightly snapshot immediately so the page isn't empty.
+      cached = await readCache(season);
       if (cached && Object.keys(cached.standings).length > 0) {
         setStandings(cached.standings);
         setPlayoffs(cached.playoffs);
         setSource('cache');
         setUpdatedAt(cached.updatedAt);
-        if (!isCacheStale(cached.updatedAt)) {
-          setLoading(false);
-          return;
-        }
-        // Stale: show it immediately, then try to do better below.
       }
 
-      // 2. Cache missing or stale — fall back to a live fetch.
+      // 2. Always check live. The snapshot is only written once a day, so a
+      //    game that ended tonight would otherwise stay unscored until 5am.
+      //    /api caches upstream for 10 minutes, so this stays cheap.
       const [s, p] = await Promise.all([
         fetch(`/api/nba/standings?season=${season}`).then((r) => {
           if (!r.ok) throw new Error(`standings ${r.status}`);
@@ -110,17 +135,30 @@ export function useNbaData(season: number | null): NbaData {
           return r.json() as Promise<Sourced<PlayoffResults>>;
         }),
       ]);
-      setStandings(s.data);
-      setPlayoffs(p.data);
-      setSource(s.source);
-      setUpdatedAt(s.updatedAt);
+
+      const haveCache = !!cached && Object.keys(cached.standings).length > 0;
+      if (!haveCache || preferLive(cached!.standings, s.data, s.source)) {
+        setStandings(s.data);
+        setSource(s.source);
+        setUpdatedAt(s.updatedAt);
+      }
+      if (!haveCache || (p.source !== 'local' && countPlayoffWins(p.data) >= countPlayoffWins(cached!.playoffs))) {
+        setPlayoffs(p.data);
+      }
     } catch (err) {
-      const local = localFallback(season);
-      setStandings(local.standings);
-      setPlayoffs(local.playoffs);
-      setSource('local');
-      setUpdatedAt(local.updatedAt);
-      setError(err instanceof Error ? err.message : 'Failed to load NBA data');
+      // Live failed. A snapshot already on screen is good enough unless it's old.
+      if (cached && Object.keys(cached.standings).length > 0) {
+        if (isCacheStale(cached.updatedAt)) {
+          setError(err instanceof Error ? err.message : 'Failed to refresh NBA data');
+        }
+      } else {
+        const local = localFallback(season);
+        setStandings(local.standings);
+        setPlayoffs(local.playoffs);
+        setSource('local');
+        setUpdatedAt(local.updatedAt);
+        setError(err instanceof Error ? err.message : 'Failed to load NBA data');
+      }
     } finally {
       setLoading(false);
     }

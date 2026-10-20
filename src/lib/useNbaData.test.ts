@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isCacheStale, CACHE_MAX_AGE_MS, weekRange, midSeasonDate } from './useNbaData';
+import { isCacheStale, CACHE_MAX_AGE_MS, weekRange, midSeasonDate, preferLive, gamesPlayed } from './useNbaData';
 
 describe('cache staleness', () => {
   const now = new Date('2026-11-20T12:00:00Z');
@@ -42,5 +42,27 @@ describe('week helpers', () => {
     const d = midSeasonDate(2025);
     expect(d.getFullYear()).toBe(2026);
     expect(d.getMonth()).toBe(0);
+  });
+});
+
+describe('preferLive', () => {
+  const zero = { 'boston-celtics': { wins: 0, losses: 0 }, 'detroit-pistons': { wins: 0, losses: 0 } };
+  const oneGame = { 'boston-celtics': { wins: 0, losses: 1 }, 'detroit-pistons': { wins: 1, losses: 0 } };
+
+  it('counts each game once', () => {
+    expect(gamesPlayed(oneGame)).toBe(1);
+    expect(gamesPlayed(null)).toBe(0);
+  });
+
+  it('takes live results that finished after the nightly snapshot', () => {
+    expect(preferLive(zero, oneGame, 'espn')).toBe(true);
+  });
+
+  it('never rolls the leaderboard backwards', () => {
+    expect(preferLive(oneGame, zero, 'espn')).toBe(false);
+  });
+
+  it('ignores the bundled local fallback', () => {
+    expect(preferLive(zero, oneGame, 'local')).toBe(false);
   });
 });
