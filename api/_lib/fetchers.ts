@@ -18,6 +18,8 @@ import {
   isPlausiblePlayoffs,
   toEspnSeason,
   playoffMonths,
+  regularSeasonMonths,
+  standingsFromEvents,
   expandScoreboardDates,
   type NbaGame,
 } from '../../src/lib/nbaSources.js';
@@ -83,6 +85,11 @@ function localSnapshot(season: number) {
   return { standings: {} as StandingsMap, playoffs: {} as PlayoffResults, updatedAt: new Date().toISOString() };
 }
 
+function gamesPlayed(standings: StandingsMap | null | undefined): number {
+  if (!standings) return 0;
+  return Object.values(standings).reduce((n, r) => n + (r.wins ?? 0), 0);
+}
+
 export async function getStandings(season: number): Promise<Sourced<StandingsMap>> {
   const notes: string[] = [];
   const key = process.env.SPORTSDATAIO_API_KEY;
@@ -104,11 +111,30 @@ export async function getStandings(season: number): Promise<Sourced<StandingsMap
     notes.push('sportsdata: no API key');
   }
 
-  const espn = await getJson(
-    `${ESPN_BASE}/v2/sports/basketball/nba/standings?season=${toEspnSeason(season)}&seasontype=2&level=1`,
-  );
-  if (espn) {
-    const parsed = parseEspnStandings(espn as never);
+  const [espn, events] = await Promise.all([
+    getJson(
+      `${ESPN_BASE}/v2/sports/basketball/nba/standings?season=${toEspnSeason(season)}&seasontype=2&level=1`,
+    ),
+    getScoreboardEvents(regularSeasonMonths(season)),
+  ]);
+  const official = espn ? parseEspnStandings(espn as never) : null;
+  const fromGames = events ? standingsFromEvents(events as never) : null;
+
+  // ESPN's standings endpoint lags until the next morning; the scoreboard is
+  // live. Prefer the tally from final games whenever it's sane and at least as
+  // far along, so tonight's results count tonight.
+  if (
+    fromGames &&
+    isPlausibleStandings(fromGames) &&
+    gamesPlayed(fromGames) > 0 &&
+    gamesPlayed(fromGames) >= gamesPlayed(official)
+  ) {
+    return { data: fromGames, source: 'espn', season, updatedAt: new Date().toISOString(), notes };
+  }
+  if (!events) notes.push('espn: scoreboard request failed');
+
+  if (espn && official) {
+    const parsed = official;
     if (isPlausibleStandings(parsed)) {
       return { data: parsed, source: 'espn', season, updatedAt: new Date().toISOString(), notes };
     }

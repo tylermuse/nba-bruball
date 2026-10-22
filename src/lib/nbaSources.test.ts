@@ -12,6 +12,8 @@ import {
   isPlausiblePlayoffs,
   playoffMonths,
   expandScoreboardDates,
+  standingsFromEvents,
+  regularSeasonMonths,
 } from './nbaSources';
 import { getRosterPoints, getPlayoffPoints, DEFAULT_SCORING } from './scoring';
 import { TEAMS } from '../data/teams';
@@ -304,6 +306,68 @@ describe('payload sanity checks (fallback gating)', () => {
 describe('playoff months', () => {
   it('covers April through June of the season’s ending year', () => {
     expect(playoffMonths(2025)).toEqual(['202604', '202605', '202606']);
+  });
+});
+
+describe('standings from final games', () => {
+  const game = (
+    id: string,
+    winner: string,
+    loser: string,
+    opts: { type?: number; status?: string; comp?: string; headline?: string } = {},
+  ) => ({
+    id,
+    season: { type: opts.type ?? 2 },
+    competitions: [
+      {
+        type: { abbreviation: opts.comp ?? 'STD' },
+        notes: opts.headline ? [{ headline: opts.headline }] : [],
+        status: { type: { name: opts.status ?? 'STATUS_FINAL' } },
+        competitors: [
+          { team: { abbreviation: winner }, winner: true },
+          { team: { abbreviation: loser }, winner: false },
+        ],
+      },
+    ],
+  });
+
+  it('tallies tonight’s finals and lists every team, even at 0-0', () => {
+    const s = standingsFromEvents([game('1', 'ATL', 'ORL'), game('2', 'ATL', 'MIA')]);
+    expect(Object.keys(s)).toHaveLength(TEAMS.length);
+    expect(s['atlanta-hawks']).toEqual({ wins: 2, losses: 0 });
+    expect(s['orlando-magic']).toEqual({ wins: 0, losses: 1 });
+    expect(s['boston-celtics']).toEqual({ wins: 0, losses: 0 });
+    expect(isPlausibleStandings(s)).toBe(true);
+  });
+
+  it('skips preseason, postseason, unfinished games, and the NBA Cup final', () => {
+    const s = standingsFromEvents([
+      game('1', 'ATL', 'ORL', { type: 1 }),
+      game('2', 'ATL', 'ORL', { type: 3 }),
+      game('3', 'ATL', 'ORL', { status: 'STATUS_IN_PROGRESS' }),
+      game('4', 'SA', 'NY', { comp: 'CC', headline: 'NBA Cup Championship' }),
+    ]);
+    expect(Object.values(s).every((r) => r.wins === 0 && r.losses === 0)).toBe(true);
+  });
+
+  it('counts a game listed twice only once', () => {
+    const s = standingsFromEvents([game('9', 'DET', 'BOS'), game('9', 'DET', 'BOS')]);
+    expect(s['detroit-pistons']).toEqual({ wins: 1, losses: 0 });
+  });
+});
+
+describe('regular-season months', () => {
+  it('runs October through April, stopping at the current month', () => {
+    expect(regularSeasonMonths(2026, new Date(Date.UTC(2026, 9, 22)))).toEqual(['202610']);
+    expect(regularSeasonMonths(2026, new Date(Date.UTC(2027, 0, 5)))).toEqual([
+      '202610',
+      '202611',
+      '202612',
+      '202701',
+    ]);
+    expect(regularSeasonMonths(2025, new Date(Date.UTC(2026, 9, 1)))).toEqual([
+      '202510', '202511', '202512', '202601', '202602', '202603', '202604',
+    ]);
   });
 });
 

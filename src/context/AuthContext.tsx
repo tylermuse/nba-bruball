@@ -16,6 +16,7 @@ interface AuthContextValue {
   loading: boolean;
   configured: boolean;
   signInWithEmail: (email: string) => Promise<void>;
+  verifyEmailCode: (email: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -59,6 +60,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(error.message);
   }, []);
 
+  /**
+   * The same email carries a one-time code alongside the link. Typing the code
+   * signs you in right here — needed when the link opens inside a mail app's
+   * built-in browser (Gmail, Outlook) instead of the browser you started in.
+   */
+  const verifyEmailCode = useCallback(async (email: string, code: string) => {
+    if (!supabase) throw new Error('Supabase is not configured');
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: code.replace(/\D/g, ''),
+      type: 'email',
+    });
+    if (error) throw new Error(error.message);
+  }, []);
+
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -72,9 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       configured: isSupabaseConfigured,
       signInWithEmail,
+      verifyEmailCode,
       signOut,
     }),
-    [session, loading, signInWithEmail, signOut],
+    [session, loading, signInWithEmail, verifyEmailCode, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

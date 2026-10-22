@@ -116,6 +116,8 @@ interface EspnCompetitor {
 }
 
 interface EspnCompetition {
+  /** `CC` marks the NBA Cup championship, which doesn't count in the standings. */
+  type?: { abbreviation?: string };
   notes?: Array<{ headline?: string }>;
   status?: { type?: { name?: string; completed?: boolean } };
   competitors?: EspnCompetitor[];
@@ -242,6 +244,64 @@ export function parseEspnScoreboard(json: { events?: EspnEvent[] }): NbaGame[] {
     });
   }
   return games;
+}
+
+// --- standings from game results -------------------------------------------
+
+/**
+ * ESPN's standings endpoint only refreshes overnight, so games that finished
+ * tonight don't show up in it until the next morning. The scoreboard is live,
+ * so tally W-L straight from final regular-season games instead.
+ *
+ * Skips preseason, postseason, and the NBA Cup championship (ESPN files it as a
+ * regular-season game, but the league doesn't count it in the standings).
+ * Every team starts at 0-0 so a team that hasn't played yet still appears.
+ */
+export function standingsFromEvents(events: EspnEvent[]): StandingsMap {
+  const out: StandingsMap = {};
+  for (const team of TEAMS) out[team.id] = { wins: 0, losses: 0 };
+  const seen = new Set<string>();
+
+  for (const event of events ?? []) {
+    if (event.season?.type !== 2) continue;
+    const comp = event.competitions?.[0];
+    if (!comp || !isFinal(comp)) continue;
+    if (comp.type?.abbreviation === 'CC') continue;
+    if ((comp.notes?.[0]?.headline ?? '').toLowerCase().includes('cup championship')) continue;
+    // Month pages can overlap a game listed under two dates; count it once.
+    const id = String(event.id ?? '');
+    if (id) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+    }
+
+    const competitors = comp.competitors ?? [];
+    const winner = competitors.find((c) => c.winner === true);
+    const loser = competitors.find((c) => c.winner === false);
+    const winnerId = resolveTeamId(winner?.team?.abbreviation, winner?.team?.displayName);
+    const loserId = resolveTeamId(loser?.team?.abbreviation, loser?.team?.displayName);
+    if (!winnerId || !loserId || !out[winnerId] || !out[loserId]) continue;
+    out[winnerId].wins += 1;
+    out[loserId].losses += 1;
+  }
+  return out;
+}
+
+/**
+ * Scoreboard `dates` values (YYYYMM) for a season's regular season — October of
+ * the starting year through April of the next — stopping at the current month
+ * so we don't query months that haven't happened.
+ */
+export function regularSeasonMonths(season: number, now: Date = new Date()): string[] {
+  const out: string[] = [];
+  const nowKey = now.getUTCFullYear() * 100 + (now.getUTCMonth() + 1);
+  for (let i = 0; i < 7; i++) {
+    const year = season + Math.floor((9 + i) / 12);
+    const month = ((9 + i) % 12) + 1;
+    if (year * 100 + month > nowKey) break;
+    out.push(`${year}${String(month).padStart(2, '0')}`);
+  }
+  return out;
 }
 
 // --- SportsData.io ----------------------------------------------------------
